@@ -11,3 +11,4 @@ proxy: # null
   addr: "172.17.0.1"
   port: "20801"
 log_level: "quiet"
+max_video_length: 3600

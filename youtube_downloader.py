@@ -105,6 +105,11 @@ async def download_vid(event, url, resolution=None, start=None, end=None):
     try:
         resolutions = config['default_resolution_order']
         yt = YouTube(url)
+        if yt.length > config['max_video_length']:
+            msg = f"#Bot: video is longer than {config['max_video_length']} seconds."
+            print(msg)
+            await event.reply(msg)
+            return
         video_title = yt.title
         print(f"Downloading {video_title} ...")
         streams = yt.streams
@@ -128,7 +133,7 @@ async def download_vid(event, url, resolution=None, start=None, end=None):
         if stream is None and video is None:
             audio = streams.get_audio_only()
             if audio is None:
-                msg ="no audio stream found."
+                msg ="#Bot: no audio stream found."
                 await event.reply(msg)
                 print(msg)
                 return
@@ -139,11 +144,13 @@ async def download_vid(event, url, resolution=None, start=None, end=None):
             if video is None:
                 video = streams.filter(only_video=True).get_highest_resolution()
             if video is None:
-                msg = "no video stream found."
+                msg = "#Bot: no video stream found."
                 await event.reply(msg)
                 print(msg)
                 return
-        print("Downloading .....")
+        msg = "#Bot: Downloading ....."
+        print(msg)
+        message = await event.reply(msg)
         combined_name = None
         audio_name = None
         with tempfile.TemporaryDirectory() as tempdir:
@@ -172,7 +179,7 @@ async def download_vid(event, url, resolution=None, start=None, end=None):
                     trim(combined_name, output_name, start=start, end=end)
                 else:
                     output_name = combined_name
-            msg = f"{video_title}\nLink: {url}"
+            msg = f"#Bot\n{video_title}\nLink: {url}"
             if start is not None:
                 msg += f"\nStart: {datetime.timedelta(seconds=start)} ({start}s), End: {datetime.timedelta(seconds=end)} ({end}s)"
             if stream:
@@ -180,10 +187,11 @@ async def download_vid(event, url, resolution=None, start=None, end=None):
             else:
                 msg += f"\nResolution: {video.resolution}"
             await event.respond(msg, link_preview=False, file=output_name)
+            await message.delete()
             await event.message.delete()
     except Exception as e:
         print(e)
-        msg = "failed to download video."
+        msg = "#Bot: failed to download video."
         await event.reply(msg)
         print(msg)
 
