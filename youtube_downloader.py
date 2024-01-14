@@ -164,7 +164,7 @@ async def download_vid(event, url, resolution=None, start=None, end=None):
                 combined_name = f'{file_name}_combined{file_extention}'
                 combine_video_audio(video_name, audio_name, combined_name)
                 if start is not None and end is not None:
-                    output_name = f'{combined_name}_out{file_extention}'
+                    output_name = f'{file_name}_out{file_extention}'
                     trim(combined_name, output_name, start=start, end=end)
                 else:
                     output_name = combined_name
