@@ -13,19 +13,20 @@ from instagrapi import Client
 url_pattern = "(https:\/\/www\.|http:\/\/www\.|https:\/\/|http:\/\/)?[a-zA-Z]{2,}(\.[a-zA-Z]{2,})(\.[a-zA-Z]{2,})?\/[a-zA-Z0-9]{2,}|((https:\/\/www\.|http:\/\/www\.|https:\/\/|http:\/\/)?[a-zA-Z]{2,}(\.[a-zA-Z]{2,})(\.[a-zA-Z]{2,})?)|(https:\/\/www\.|http:\/\/www\.|https:\/\/|http:\/\/)?[a-zA-Z0-9]{2,}\.[a-zA-Z0-9]{2,}\.[a-zA-Z0-9]{2,}(\.[a-zA-Z0-9]{2,})?"
 youtube_url_pattern = "^((?:https?:)?//)?((?:www|m).)?((?:youtube.com|youtu.be))(/(?:[\w-]+?v=|embed/|v/|shorts/)?)([\w-]+)(\S+)?.*"
 instagram_url_pattern = "((?:https?:\/\/)?(?:www\.)?instagram\.com\/(?:p|reel)\/([^/?#&]+)).*"
+allowed_resolutions = ['2160p', '1440p', '1080p', '720p', '480p', '360p', '240p', '144p']
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--config', default='config.yaml')
 args = parser.parse_args()
-allowed_resolutions = ['2160p', '1440p', '1080p', '720p', '480p', '360p', '240p', '144p']
+
 config = {}
 with open(args.config) as f:
     config = yaml.load(f, Loader=yaml.loader.SafeLoader)
 
-allowed_telegram_users = config['allowed_telegram_users']
-allowed_telegram_chats = config['allowed_telegram_chats']
-allowed_insta_users = config['allowed_insta_users']
-allowed_insta_chats = config['allowed_insta_chats']
+allowed_youtube_user_ids = config['allowed_youtube_user_ids']
+allowed_youtube_chat_ids = config['allowed_youtube_chat_ids']
+allowed_insta_user_ids = config['allowed_insta_user_ids']
+allowed_insta_chat_ids = config['allowed_insta_chat_ids']
 
 insta = Client()
 
@@ -41,7 +42,7 @@ if config['proxy']:
 client = TelegramClient(config['session'], config['api_id'], config['api_hash'], proxy=proxy).start(phone=config['phone_number'])
 insta.login_by_sessionid(config['instagram_session_id'])
 
-@client.on(events.NewMessage(func=lambda e: e.chat_id in allowed_insta_chats or e.sender.username in allowed_insta_users, pattern=instagram_url_pattern))
+@client.on(events.NewMessage(func=lambda e: e.chat_id in allowed_insta_chat_ids or e.sender_id in allowed_insta_user_ids, pattern=instagram_url_pattern))
 async def handler_insta(event):
     text = event.raw_text
     url = parse_args_insta(text)
@@ -165,7 +166,7 @@ def parse_args_yt(text):
     except:
         return url, resolution, start, end
     
-@client.on(events.NewMessage(func=lambda e: e.chat_id in allowed_telegram_chats or e.sender.username in allowed_telegram_users, pattern=youtube_url_pattern))
+@client.on(events.NewMessage(func=lambda e: e.chat_id in allowed_youtube_chat_ids or e.sender_id in allowed_youtube_user_ids, pattern=youtube_url_pattern))
 async def handler_yt(event):
     text = event.raw_text
     url, resolution, start, end = parse_args_yt(text)

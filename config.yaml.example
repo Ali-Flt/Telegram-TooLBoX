@@ -1,8 +1,10 @@
 default_resolution_order: ["480p", "360p", "720p", "240p", "144p", "1080p", "1440p", "2160p"]
-allowed_telegram_users: ['you_username']
-allowed_telegram_chats: [-123456798]
-allowed_insta_users: ['you_username']
-allowed_insta_chats: [-123456798]
+allowed_youtube_usernames: ['username1', 'username2']
+allowed_youtube_user_ids: [123456, 123456]
+allowed_youtube_chat_ids: [-123456]
+allowed_insta_usernames: ['username1', 'username2']
+allowed_insta_user_ids: [123456, 123456]
+allowed_insta_chat_ids: [-123456]
 token: "your_token"
 session: 'telegram_session'
 api_id: 12345679
