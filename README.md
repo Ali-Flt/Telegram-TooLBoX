@@ -16,3 +16,8 @@ Send youtube links in one of these formates if you want it to convert into the v
 
 - resolution example: `1080p`, `720p`, ...
 - start_time and end_time are in seconds.
+
+# Donations
+Consider buying me a coffee if this helped you.
+
+[!["Buy Me A Coffee"](https://www.buymeacoffee.com/assets/img/custom_images/orange_img.png)](https://www.buymeacoffee.com/aflt)
