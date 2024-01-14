@@ -5,7 +5,7 @@ session: 'telegram_session'
 api_id: 12345679
 api_hash: 'your_api_hash'
 phone_number: '+99123456789'
-proxy:
+proxy: # null
   proxy_type: "http"
   addr: "172.17.0.1"
   port: "20801"

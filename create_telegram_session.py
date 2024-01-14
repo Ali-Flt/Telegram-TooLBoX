@@ -9,6 +9,8 @@ args = parser.parse_args()
 config = {}
 with open(args.config) as f:
     config = yaml.load(f, Loader=yaml.loader.SafeLoader)
-
-TelegramClient(config['session'], config['api_id'], config['api_hash']).start(phone=config['phone_number'])
+proxy = None
+if config['proxy']:
+    proxy = config['proxy']
+TelegramClient(config['session'], config['api_id'], config['api_hash'], proxy=proxy).start(phone=config['phone_number'])
 print('.session file created successfully. DO NOT SHARE IT!')
