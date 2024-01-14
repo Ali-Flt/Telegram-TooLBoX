@@ -70,6 +70,8 @@ def parse_args(text):
         if len(splitted_message) == 2:
             if splitted_message[1] in resolutions:
                 resolution = splitted_message[1]
+            elif get_int(splitted_message[1]) != 1:
+                url = None
         elif len(splitted_message) == 3:
             start = get_int(splitted_message[1])
             end = get_int(splitted_message[2])
@@ -85,7 +87,6 @@ def parse_args(text):
             if start >= end or start < 0 or end < 0:
                 start = None
                 end = None
-        
     except:
         pass
     return url, resolution, start, end

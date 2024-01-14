@@ -8,8 +8,8 @@ Automatically download youtube videos and send it to the corresponding telegram 
 3. run `./create_telegram_session.sh` and enter the asked code
 4. run `docker compose up`
 
-send youtube links in one of these formates:
-1. link
+Send youtube links in one of these formates if you want it to convert into the video:
+1. link 1
 2. link resolution
 3. link start_time end_time
 4. link resolution start_time end_time
