@@ -117,41 +117,37 @@ async def download_vid(event, url, resolution=None, start=None, end=None):
         video_title = yt.title
         print(f"Downloading {video_title} ...")
         streams = yt.streams
+        print(streams)
         stream = None
         video = None
         audio = None
+        audio = streams.get_audio_only()
         if resolution is not None:
             if len(streams.filter(res=resolution, progressive=True)):
                 stream = streams.filter(res=resolution, progressive=True).first()
             if stream is None:
-                audio = streams.get_audio_only()
-                if audio is not None and len(streams.filter(res=resolution, only_video=True)):
+                if len(streams.filter(res=resolution, only_video=True)):
                     video = streams.filter(res=resolution, only_video=True).first()
         if stream is None and video is None:
             for res in resolutions:
                 if len(streams.filter(res=res, progressive=True)):
                     stream = streams.filter(res=res, progressive=True).first()
                     break
-        if stream is None and video is None:
-            stream = streams.filter(progressive=True).get_highest_resolution()
-        if stream is None and video is None:
-            audio = streams.get_audio_only()
-            if audio is None:
-                msg ="#Bot: no audio stream found."
-                await event.reply(msg)
-                print(msg)
-                return
-            for res in resolutions:
                 if len(streams.filter(res=res, only_video=True)):
                     video = streams.filter(res=res, only_video=True).first()
                     break
-            if video is None:
-                video = streams.filter(only_video=True).get_highest_resolution()
-            if video is None:
-                msg = "#Bot: no video stream found."
-                await event.reply(msg)
-                print(msg)
-                return
+        if stream is None and video is None:
+            stream = streams.filter(progressive=True).get_highest_resolution()
+        if stream is None and video is None:
+            msg ="#Bot: no video stream found."
+            await event.reply(msg)
+            print(msg)
+            return
+        elif stream is None and audio is None:
+            msg = "#Bot: no audio stream found."
+            await event.reply(msg)
+            print(msg)
+            return
         combined_name = None
         audio_name = None
         with tempfile.TemporaryDirectory() as tempdir:
