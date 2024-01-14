@@ -120,13 +120,14 @@ async def download_vid(event, url, resolution=None, start=None, end=None):
         stream = None
         video = None
         audio = None
-        if len(streams.filter(res=resolution, progressive=True)):
-            stream = streams.filter(res=resolution, progressive=True).first()
-        if stream is None:
-            audio = streams.get_audio_only()
-            if audio is not None and len(streams.filter(res=resolution, only_video=True)):
-                video = streams.filter(res=resolution, only_video=True).first()
-        if video is None:
+        if resolution is not None:
+            if len(streams.filter(res=resolution, progressive=True)):
+                stream = streams.filter(res=resolution, progressive=True).first()
+            if stream is None:
+                audio = streams.get_audio_only()
+                if audio is not None and len(streams.filter(res=resolution, only_video=True)):
+                    video = streams.filter(res=resolution, only_video=True).first()
+        if stream is None and video is None:
             for res in resolutions:
                 if len(streams.filter(res=res, progressive=True)):
                     stream = streams.filter(res=res, progressive=True).first()
