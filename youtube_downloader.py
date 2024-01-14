@@ -7,7 +7,7 @@ import argparse
 from telethon import TelegramClient, events
 import datetime
 import tempfile
-
+import http
 
 url_pattern = "(https:\/\/www\.|http:\/\/www\.|https:\/\/|http:\/\/)?[a-zA-Z]{2,}(\.[a-zA-Z]{2,})(\.[a-zA-Z]{2,})?\/[a-zA-Z0-9]{2,}|((https:\/\/www\.|http:\/\/www\.|https:\/\/|http:\/\/)?[a-zA-Z]{2,}(\.[a-zA-Z]{2,})(\.[a-zA-Z]{2,})?)|(https:\/\/www\.|http:\/\/www\.|https:\/\/|http:\/\/)?[a-zA-Z0-9]{2,}\.[a-zA-Z0-9]{2,}\.[a-zA-Z0-9]{2,}(\.[a-zA-Z0-9]{2,})?"
 youtube_url_pattern = "^((?:https?:)?//)?((?:www|m).)?((?:youtube.com|youtu.be))(/(?:[\w-]+?v=|embed/|v/|shorts/)?)([\w-]+)(\S+)?.*"
@@ -102,6 +102,9 @@ async def handler(event):
         print("invalid input.")
 
 async def download_vid(event, url, resolution=None, start=None, end=None):
+    msg = "#Bot: Downloading ....."
+    print(msg)
+    message = await event.reply(msg)
     try:
         resolutions = config['default_resolution_order']
         yt = YouTube(url)
@@ -148,14 +151,11 @@ async def download_vid(event, url, resolution=None, start=None, end=None):
                 await event.reply(msg)
                 print(msg)
                 return
-        msg = "#Bot: Downloading ....."
-        print(msg)
-        message = await event.reply(msg)
         combined_name = None
         audio_name = None
         with tempfile.TemporaryDirectory() as tempdir:
             if stream:
-                video_name = stream.download(output_path=tempdir)
+                video_name = stream.download(output_path=tempdir, max_retries=10)
                 print(f"{video_title} downloaded successfully")
                 file_name = os.path.splitext(video_name)[0]
                 file_extention = os.path.splitext(video_name)[-1]
@@ -165,12 +165,12 @@ async def download_vid(event, url, resolution=None, start=None, end=None):
                 else:
                     output_name = video_name
             else:
-                video_default_name = video.download(output_path=tempdir)
+                video_default_name = video.download(output_path=tempdir, max_retries=10)
                 file_name = os.path.splitext(video_default_name)[0]
                 file_extention = os.path.splitext(video_default_name)[-1]
                 video_name = f"{file_name}_video{file_extention}"
                 os.rename(video_default_name, video_name)
-                audio_name = audio.download(output_path=tempdir)
+                audio_name = audio.download(output_path=tempdir, max_retries=10)
                 print(f"{video_title} downloaded successfully")
                 combined_name = f'{file_name}_combined{file_extention}'
                 combine_video_audio(video_name, audio_name, combined_name)
@@ -189,8 +189,13 @@ async def download_vid(event, url, resolution=None, start=None, end=None):
             await event.respond(msg, link_preview=False, file=output_name)
             await message.delete()
             await event.message.delete()
+    except (http.client.IncompleteRead) as e:
+        print(e)
+        await message.delete()
+        await download_vid(event, url, resolution, start, end)
     except Exception as e:
         print(e)
+        await message.delete()
         msg = "#Bot: failed to download video."
         await event.reply(msg)
         print(msg)
