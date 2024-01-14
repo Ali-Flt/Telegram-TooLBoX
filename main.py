@@ -51,7 +51,7 @@ async def handler_insta(event):
         print("invalid input.")
 
 async def download_insta(event, url):
-    msg = "Downloading..."
+    msg = "#Bot: Downloading..."
     message = await event.reply(msg)
     print(msg)
     try:
@@ -73,7 +73,7 @@ async def download_insta(event, url):
                 media_path = insta.album_download(media_pk, tempdir)
             else:
                 await message.delete()
-                msg = "failed to download file."
+                msg = "#Bot: failed to download file."
                 print(msg)
                 await event.reply(msg)
                 return
@@ -83,7 +83,7 @@ async def download_insta(event, url):
     except Exception as e:
         print(e)
         await message.delete()
-        msg = "failed to download file."
+        msg = "#Bot: failed to download file."
         print(msg)
         await event.reply(msg)
         
