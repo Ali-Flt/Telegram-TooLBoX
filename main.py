@@ -188,7 +188,6 @@ async def download_youtube(event, url, resolution=None, start=None, end=None):
         video_title = yt.title
         print(f"Downloading {video_title} ...")
         streams = yt.streams
-        print(streams)
         stream = None
         video = None
         audio = None
