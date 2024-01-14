@@ -3,10 +3,11 @@ Automatically download youtube and instagram videos and send it to the correspon
 
 # How to use
 
-1. create `config.yaml` based on `config.yaml.example`
+1. create `config.yaml` based on `config.yaml.example` (skip the allowed_user_ids parameters at this step)
 2. run `./build_docker_image.sh`
-3. run `./create_telegram_session.sh` and enter the asked code
-4. run `docker compose up`
+3. run `./get_user_ids.sh` and store the results in config.yaml
+4. run `./create_telegram_session.sh` and enter the asked code
+5. run `docker compose up`
 
 Send youtube links in one of these formates if you want it to convert into the video:
 1. link 1
