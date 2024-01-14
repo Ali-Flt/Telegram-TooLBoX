@@ -109,6 +109,7 @@ async def download_vid(event, url, resolution=None, start=None, end=None):
         resolutions = config['default_resolution_order']
         yt = YouTube(url)
         if yt.length > config['max_video_length']:
+            await message.delete()
             msg = f"#Bot: video is longer than {config['max_video_length']} seconds."
             print(msg)
             await event.reply(msg)
