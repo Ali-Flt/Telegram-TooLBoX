@@ -3,5 +3,5 @@ pytube==15.0.0
 ffmpeg-python==0.2.0
 pyyaml==6.0.1
 python-socks[asyncio]==2.4.4
-pydantic==1.10.13
 instagrapi==2.0.1
+pillow==10.2.0
