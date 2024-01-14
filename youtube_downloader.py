@@ -128,7 +128,9 @@ async def download_vid(event, url, resolution=None, start=None, end=None):
         if stream is None and video is None:
             audio = streams.get_audio_only()
             if audio is None:
-                print("no audio stream found.")
+                msg ="no audio stream found."
+                await event.reply(msg)
+                print(msg)
                 return
             for res in resolutions:
                 if len(streams.filter(res=res, only_video=True)):
@@ -137,7 +139,9 @@ async def download_vid(event, url, resolution=None, start=None, end=None):
             if video is None:
                 video = streams.filter(only_video=True).get_highest_resolution()
             if video is None:
-                print("no video stream found.")
+                msg = "no video stream found."
+                await event.reply(msg)
+                print(msg)
                 return
         print("Downloading .....")
         combined_name = None
@@ -179,7 +183,9 @@ async def download_vid(event, url, resolution=None, start=None, end=None):
             await event.message.delete()
     except Exception as e:
         print(e)
-        print("failed to download video.")
+        msg = "failed to download video."
+        await event.reply(msg)
+        print(msg)
 
 if __name__ == '__main__':
     client.run_until_disconnected()
