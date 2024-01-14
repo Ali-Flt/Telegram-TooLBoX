@@ -46,21 +46,10 @@ def combine_video_audio(video_file, audio_file, output_file):
     video_stream = ffmpeg.input(video_file)
     audio_stream = ffmpeg.input(audio_file)
     ffmpeg.output(audio_stream, video_stream, output_file, acodec='copy', vcodec='copy', loglevel=config['log_level']).run(overwrite_output=True)
-    
+  
 def trim(input_path, output_path, start, end):
-    input_stream = ffmpeg.input(input_path)
-    vid = (
-        input_stream.video
-        .trim(start=start, end=end)
-        .setpts('PTS-STARTPTS')
-    )
-    aud = (
-        input_stream.audio
-        .filter_('atrim', start=start, end=end)
-        .filter_('asetpts', 'PTS-STARTPTS')
-    )
-    joined = ffmpeg.concat(vid, aud, v=1, a=1).node
-    ffmpeg.output(joined[0], joined[1], output_path, loglevel=config['log_level']).run(overwrite_output=True)
+    input_stream = ffmpeg.input(input_path, ss=(str(datetime.timedelta(seconds=start))), to=(str(datetime.timedelta(seconds=end))))
+    ffmpeg.output(input_stream, output_path, acodec='copy', vcodec='copy', loglevel=config['log_level']).run(overwrite_output=True)
 
 def parse_args(text):
     resolution = None
