@@ -66,30 +66,37 @@ def parse_args(text):
     url = None
     try:
         splitted_message = re.split(' ', text)
-        url = splitted_message[0]
-        if len(splitted_message) == 2:
+        if len(splitted_message) == 0:
+            return url, resolution, start, end
+        elif len(splitted_message) == 1:
+            return url, resolution, start, end
+        elif len(splitted_message) == 2:
             if splitted_message[1] in resolutions:
                 resolution = splitted_message[1]
             elif get_int(splitted_message[1]) != 1:
-                url = None
+                return url, resolution, start, end
         elif len(splitted_message) == 3:
             start = get_int(splitted_message[1])
             end = get_int(splitted_message[2])
+            if start is None or end is None:
+                return url, resolution, start, end
         elif len(splitted_message) == 4:
             if splitted_message[1] in resolutions:
                 resolution = splitted_message[1]
             start = get_int(splitted_message[2])
             end = get_int(splitted_message[3])
-        if (start is None and end is not None) or (start is not None and end is None):
-            start = None
-            end = None
+            if resolution is None or start is None or end is None:
+                return url, resolution, start, end
+        else:
+            return url, resolution, start, end
         if start is not None:
             if start >= end or start < 0 or end < 0:
-                start = None
-                end = None
+                return url, resolution, start, end
+        url = splitted_message[0]
+        return url, resolution, start, end
     except:
-        pass
-    return url, resolution, start, end
+        return url, resolution, start, end
+    
 
 @client.on(events.NewMessage(func=lambda e: e.chat_id in allowed_chats or e.sender.username in allowed_users, pattern=youtube_url_pattern))
 async def handler(event):
