@@ -42,9 +42,13 @@ def silentremove(filename):
         if e.errno != errno.ENOENT:
             raise
 
+def combine_video_audio(video_file, audio_file, output_file):
+    video_stream = ffmpeg.input(video_file)
+    audio_stream = ffmpeg.input(audio_file)
+    ffmpeg.output(audio_stream, video_stream, output_file, acodec='copy', vcodec='copy', loglevel=config['log_level']).run(overwrite_output=True)
+    
 def trim(input_path, output_path, start, end):
     input_stream = ffmpeg.input(input_path)
-
     vid = (
         input_stream.video
         .trim(start=start, end=end)
@@ -55,10 +59,8 @@ def trim(input_path, output_path, start, end):
         .filter_('atrim', start=start, end=end)
         .filter_('asetpts', 'PTS-STARTPTS')
     )
-
     joined = ffmpeg.concat(vid, aud, v=1, a=1).node
-    output = ffmpeg.output(joined[0], joined[1], output_path, loglevel="quiet")
-    output.run(overwrite_output=True)
+    ffmpeg.output(joined[0], joined[1], output_path, loglevel=config['log_level']).run(overwrite_output=True)
 
 def parse_args(text):
     resolution = None
@@ -110,40 +112,87 @@ async def handler(event):
 
 async def download_vid(event, url, resolution=None, start=None, end=None):
     try:
-        if resolution is None:
-            resolution = config['default_resolution']
+        resolutions = config['default_resolution_order']
         yt = YouTube(url)
         video_title = yt.title
         print(f"Downloading {video_title} ...")
-        streams = yt.streams.filter(progressive=True)
-        if len(streams.filter(res=resolution)):
-            stream = streams.filter(res=resolution).first()
-        else:
-            stream = streams.get_highest_resolution()
+        streams = yt.streams
+        stream = None
+        video = None
+        audio = None
+        if len(streams.filter(res=resolution, progressive=True)):
+            stream = streams.filter(res=resolution, progressive=True).first()
+        if stream is None:
+            audio = streams.get_audio_only()
+            if audio is not None and len(streams.filter(res=resolution, only_video=True)):
+                video = streams.filter(res=resolution, only_video=True).first()
+        if video is None:
+            for res in resolutions:
+                if len(streams.filter(res=res, progressive=True)):
+                    stream = streams.filter(res=res, progressive=True).first()
+                    break
+        if stream is None and video is None:
+            stream = streams.filter(progressive=True).get_highest_resolution()
+        if stream is None and video is None:
+            audio = streams.get_audio_only()
+            if audio is None:
+                print("no audio stream found.")
+                return
+            for res in resolutions:
+                if len(streams.filter(res=res, only_video=True)):
+                    video = streams.filter(res=res, only_video=True).first()
+                    break
+            if video is None:
+                video = streams.filter(only_video=True).get_highest_resolution()
+            if video is None:
+                print("no video stream found.")
+                return
+        print("Downloading .....")
+        combined_name = None
+        audio_name = None
         if stream:
-            stream.download()
-            print("Downloading .....")
+            video_name = stream.download()
             print(f"{video_title} downloaded successfully")
-            input_name = stream.default_filename
-            file_name = os.path.splitext(input_name)[0]
-            file_extention = os.path.splitext(input_name)[-1]
-            
+            file_name = os.path.splitext(video_name)[0]
+            file_extention = os.path.splitext(video_name)[-1]
             if start is not None and end is not None:
-                output_name =  f'{file_name}_out{file_extention}'
-                trim(input_name, output_name, start=start, end=end)
+                output_name = f'{file_name}_out{file_extention}'
+                trim(video_name, output_name, start=start, end=end)
             else:
-                output_name = input_name
-            msg = f"{video_title}\nLink: {url}"
-            if start is not None:
-                msg += f"\nStart: {datetime.timedelta(seconds=start)} ({start}s), End: {datetime.timedelta(seconds=end)} ({end}s)"
-            msg += f"\nResolution: {stream.resolution}"
-            await event.respond(msg, link_preview=False, file=output_name)
-            await event.message.delete()
-            silentremove(input_name)
-            silentremove(output_name)
+                output_name = video_name
         else:
-            print("video not found.")
-    except:
+            video_default_name = video.download()
+            file_name = os.path.splitext(video_default_name)[0]
+            file_extention = os.path.splitext(video_default_name)[-1]
+            video_name = f"{file_name}_video{file_extention}"
+            os.rename(video_default_name, video_name)
+            audio_name = audio.download()
+            print(f"{video_title} downloaded successfully")
+            combined_name = f'{file_name}_combined{file_extention}'
+            combine_video_audio(video_name, audio_name, combined_name)
+            if start is not None and end is not None:
+                output_name = f'{combined_name}_out{file_extention}'
+                trim(combined_name, output_name, start=start, end=end)
+            else:
+                output_name = combined_name
+        msg = f"{video_title}\nLink: {url}"
+        if start is not None:
+            msg += f"\nStart: {datetime.timedelta(seconds=start)} ({start}s), End: {datetime.timedelta(seconds=end)} ({end}s)"
+        if stream:
+            msg += f"\nResolution: {stream.resolution}"
+        else:
+            msg += f"\nResolution: {video.resolution}"
+        await event.respond(msg, link_preview=False, file=output_name)
+        await event.message.delete()
+        silentremove(video_name)
+        silentremove(output_name)
+        if combined_name:
+            silentremove(combined_name)
+        if audio_name:
+            silentremove(audio_name)
+        
+    except Exception as e:
+        print(e)
         print("failed to download video.")
 
 if __name__ == '__main__':

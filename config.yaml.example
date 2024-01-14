@@ -1,4 +1,4 @@
-default_resolution: "480p"
+default_resolution_order: ["480p", "360p", "720p", "240p", "144p", "1080p", "1440p"]
 allowed_users: ['you_username']
 allowed_chats: [-123456798]
 token: "your_token"
@@ -10,3 +10,4 @@ proxy: # null
   proxy_type: "http"
   addr: "172.17.0.1"
   port: "20801"
+log_level: "quiet"
