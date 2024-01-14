@@ -1,3 +1,4 @@
+default_resolution: "480p"
 allowed_users: ['you_username']
 allowed_chats: [-123456798]
 token: "your_token"

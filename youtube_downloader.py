@@ -5,6 +5,7 @@ import re
 import yaml
 import argparse
 from telethon import TelegramClient, events
+import datetime
 
 url_pattern = "(https:\/\/www\.|http:\/\/www\.|https:\/\/|http:\/\/)?[a-zA-Z]{2,}(\.[a-zA-Z]{2,})(\.[a-zA-Z]{2,})?\/[a-zA-Z0-9]{2,}|((https:\/\/www\.|http:\/\/www\.|https:\/\/|http:\/\/)?[a-zA-Z]{2,}(\.[a-zA-Z]{2,})(\.[a-zA-Z]{2,})?)|(https:\/\/www\.|http:\/\/www\.|https:\/\/|http:\/\/)?[a-zA-Z0-9]{2,}\.[a-zA-Z0-9]{2,}\.[a-zA-Z0-9]{2,}(\.[a-zA-Z0-9]{2,})?"
 youtube_url_pattern = "^((?:https?:)?//)?((?:www|m).)?((?:youtube.com|youtu.be))(/(?:[\w-]+?v=|embed/|v/|shorts/)?)([\w-]+)(\S+)?.*"
@@ -109,17 +110,16 @@ async def handler(event):
 
 async def download_vid(event, url, resolution=None, start=None, end=None):
     try:
+        if resolution is None:
+            resolution = config['default_resolution']
         yt = YouTube(url)
         video_title = yt.title
         print(f"Downloading {video_title} ...")
         streams = yt.streams.filter(progressive=True)
-        if resolution is not None:
-            if len(streams.filter(res=resolution)):
-                stream = streams.filter(res=resolution).first()
-            else:
-                stream = streams.get_highest_resolution()
+        if len(streams.filter(res=resolution)):
+            stream = streams.filter(res=resolution).first()
         else:
-            stream = streams.first()
+            stream = streams.get_highest_resolution()
         if stream:
             stream.download()
             print("Downloading .....")
@@ -133,7 +133,11 @@ async def download_vid(event, url, resolution=None, start=None, end=None):
                 trim(input_name, output_name, start=start, end=end)
             else:
                 output_name = input_name
-            await event.respond(f"{video_title}\nLink: {url}", link_preview=False, file=output_name)
+            msg = f"{video_title}\nLink: {url}"
+            if start is not None:
+                msg += f"\nStart: {datetime.timedelta(seconds=start)} ({start}s), End: {datetime.timedelta(seconds=end)} ({end}s)"
+            msg += f"\nResolution: {stream.resolution}"
+            await event.respond(msg, link_preview=False, file=output_name)
             await event.message.delete()
             silentremove(input_name)
             silentremove(output_name)
