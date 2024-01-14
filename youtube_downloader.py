@@ -139,11 +139,15 @@ async def download_vid(event, url, resolution=None, start=None, end=None):
         if stream is None and video is None:
             stream = streams.filter(progressive=True).get_highest_resolution()
         if stream is None and video is None:
+            video = streams.filter(only_video=True).get_highest_resolution()
+        if stream is None and video is None:
+            await message.delete()
             msg ="#Bot: no video stream found."
             await event.reply(msg)
             print(msg)
             return
         elif stream is None and audio is None:
+            await message.delete()
             msg = "#Bot: no audio stream found."
             await event.reply(msg)
             print(msg)
