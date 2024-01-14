@@ -11,7 +11,7 @@ youtube_url_pattern = "^((?:https?:)?//)?((?:www|m).)?((?:youtube.com|youtu.be))
 parser = argparse.ArgumentParser()
 parser.add_argument('--config', default='config.yaml')
 args = parser.parse_args()
-
+resolutions = ['1080p', '720p', '480p', '360p', '240p', '144p']
 config = {}
 with open(args.config) as f:
     config = yaml.load(f, Loader=yaml.loader.SafeLoader)
@@ -28,6 +28,11 @@ if config['proxy']:
 
 client = TelegramClient(config['session'], config['api_id'], config['api_hash'], proxy=proxy).start(phone=config['phone_number'])
 
+def get_int(string):
+    try:
+        return int(string)
+    except ValueError:
+        return None
 
 def silentremove(filename):
     try:
@@ -63,30 +68,38 @@ def parse_args(text):
         splitted_message = re.split(' ', text)
         url = splitted_message[0]
         if len(splitted_message) == 2:
-            resolution = splitted_message[1]
+            if splitted_message[1] in resolutions:
+                resolution = splitted_message[1]
         elif len(splitted_message) == 3:
-            start = int(splitted_message[1])
-            end = int(splitted_message[2])
+            start = get_int(splitted_message[1])
+            end = get_int(splitted_message[2])
         elif len(splitted_message) == 4:
-            resolution = splitted_message[1]
-            start = int(splitted_message[2])
-            end = int(splitted_message[3])
+            if splitted_message[1] in resolutions:
+                resolution = splitted_message[1]
+            start = get_int(splitted_message[2])
+            end = get_int(splitted_message[3])
+        if (start is None and end is not None) or (start is not None and end is None):
+            start = None
+            end = None
+        if start is not None:
+            if start >= end or start < 0 or end < 0:
+                start = None
+                end = None
+        
     except:
         pass
     return url, resolution, start, end
 
 @client.on(events.NewMessage(func=lambda e: e.chat_id in allowed_chats or e.sender.username in allowed_users, pattern=youtube_url_pattern))
 async def handler(event):
-    text = event.text
-    id = event.chat_id
-    print(id)
+    text = event.raw_text
     url, resolution, start, end = parse_args(text)
     if url is not None:
-        await download_vid(id, url, resolution, start, end)
+        await download_vid(event, url, resolution, start, end)
     else:
         print("invalid input.")
 
-async def download_vid(id, url, resolution=None, start=None, end=None):
+async def download_vid(event, url, resolution=None, start=None, end=None):
     try:
         yt = YouTube(url)
         video_title = yt.title
@@ -107,12 +120,13 @@ async def download_vid(id, url, resolution=None, start=None, end=None):
             file_name = os.path.splitext(input_name)[0]
             file_extention = os.path.splitext(input_name)[-1]
             
-            if start is not None:
+            if start is not None and end is not None:
                 output_name =  f'{file_name}_out{file_extention}'
                 trim(input_name, output_name, start=start, end=end)
             else:
                 output_name = input_name
-            await client.send_message(id, f"{video_title}", file=output_name)
+            await event.respond(f"{video_title}\nLink: {url}", link_preview=False, file=output_name)
+            await event.message.delete()
             silentremove(input_name)
             silentremove(output_name)
         else:
@@ -120,4 +134,5 @@ async def download_vid(id, url, resolution=None, start=None, end=None):
     except:
         print("failed to download video.")
 
-client.run_until_disconnected()
+if __name__ == '__main__':
+    client.run_until_disconnected()
