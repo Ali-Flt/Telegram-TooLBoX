@@ -1,1 +1,1 @@
-docker build -t youtube_downloader --network=host .
+docker build -t yt_insta_downloader --network=host .

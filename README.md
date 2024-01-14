@@ -1,5 +1,5 @@
-# youtube-dl-telegram
-Automatically download youtube videos and send it to the corresponding telegram chat.
+# youtube-and-instagram-to-telegram
+Automatically download youtube and instagram videos and send it to the corresponding telegram chat.
 
 # How to use
 
@@ -16,6 +16,9 @@ Send youtube links in one of these formates if you want it to convert into the v
 
 - resolution example: `1080p`, `720p`, ...
 - start_time and end_time are in seconds.
+
+Send instagram links in this format:
+1. link 1
 
 # Donations
 Consider buying me a coffee if this helped you.

@@ -1,12 +1,12 @@
 version: '1'
 services:
-  youtube_downloader_container:
-    image: youtube_downloader
+  yt_insta_downloader_container:
+    image: yt_insta_downloader
     restart: always
     working_dir: /app
     volumes:
       - ./:/app
-    command: python3 -u youtube_downloader.py --config config.yaml
+    command: python3 -u main.py --config config.yaml
     network_mode: "host"
     logging:
       driver: "json-file"

@@ -1,6 +1,8 @@
 default_resolution_order: ["480p", "360p", "720p", "240p", "144p", "1080p", "1440p", "2160p"]
-allowed_users: ['you_username']
-allowed_chats: [-123456798]
+allowed_telegram_users: ['you_username']
+allowed_telegram_chats: [-123456798]
+allowed_insta_users: ['you_username']
+allowed_insta_chats: [-123456798]
 token: "your_token"
 session: 'telegram_session'
 api_id: 12345679
@@ -12,3 +14,4 @@ proxy: # null
   port: "20801"
 log_level: "quiet"
 max_video_length: 3600
+instagram_session_id: "your_session_id"

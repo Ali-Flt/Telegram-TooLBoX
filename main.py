@@ -8,9 +8,12 @@ from telethon import TelegramClient, events
 import datetime
 import tempfile
 import http
+from instagrapi import Client
 
 url_pattern = "(https:\/\/www\.|http:\/\/www\.|https:\/\/|http:\/\/)?[a-zA-Z]{2,}(\.[a-zA-Z]{2,})(\.[a-zA-Z]{2,})?\/[a-zA-Z0-9]{2,}|((https:\/\/www\.|http:\/\/www\.|https:\/\/|http:\/\/)?[a-zA-Z]{2,}(\.[a-zA-Z]{2,})(\.[a-zA-Z]{2,})?)|(https:\/\/www\.|http:\/\/www\.|https:\/\/|http:\/\/)?[a-zA-Z0-9]{2,}\.[a-zA-Z0-9]{2,}\.[a-zA-Z0-9]{2,}(\.[a-zA-Z0-9]{2,})?"
 youtube_url_pattern = "^((?:https?:)?//)?((?:www|m).)?((?:youtube.com|youtu.be))(/(?:[\w-]+?v=|embed/|v/|shorts/)?)([\w-]+)(\S+)?.*"
+instagram_url_pattern = "((?:https?:\/\/)?(?:www\.)?instagram\.com\/(?:p|reel)\/([^/?#&]+)).*"
+
 parser = argparse.ArgumentParser()
 parser.add_argument('--config', default='config.yaml')
 args = parser.parse_args()
@@ -19,17 +22,86 @@ config = {}
 with open(args.config) as f:
     config = yaml.load(f, Loader=yaml.loader.SafeLoader)
 
-allowed_users = config['allowed_users']
-allowed_chats = config['allowed_chats']
+allowed_telegram_users = config['allowed_telegram_users']
+allowed_telegram_chats = config['allowed_telegram_chats']
+allowed_insta_users = config['allowed_insta_users']
+allowed_insta_chats = config['allowed_insta_chats']
+
+insta = Client()
 
 proxy = None
 if config['proxy']:
-    proxies = {"http": f"{config['proxy']['proxy_type']}://{config['proxy']['addr']}:{config['proxy']['port']}",
-               "https": f"{config['proxy']['proxy_type']}://{config['proxy']['addr']}:{config['proxy']['port']}"}
+    proxy_str = f"{config['proxy']['proxy_type']}://{config['proxy']['addr']}:{config['proxy']['port']}"
+    proxies = {"http": proxy_str,
+               "https": proxy_str}
     helpers.install_proxy(proxies)
     proxy = config['proxy']
-
+    insta.set_proxy(proxy_str)
+    
 client = TelegramClient(config['session'], config['api_id'], config['api_hash'], proxy=proxy).start(phone=config['phone_number'])
+insta.login_by_sessionid(config['instagram_session_id'])
+
+@client.on(events.NewMessage(func=lambda e: e.chat_id in allowed_insta_chats or e.sender.username in allowed_insta_users, pattern=instagram_url_pattern))
+async def handler_insta(event):
+    text = event.raw_text
+    url = parse_args_insta(text)
+    if url is not None:
+        await download_insta(event, url)
+    else:
+        print("invalid input.")
+
+async def download_insta(event, url):
+    msg = "Downloading..."
+    message = await event.reply(msg)
+    print(msg)
+    try:
+        media_pk = insta.media_pk_from_url(url)
+        media_type = insta.media_info(media_pk).media_type
+        product_type = insta.media_info(media_pk).product_type
+        with tempfile.TemporaryDirectory() as tempdir:
+            if media_type == 1: # photo
+                media_path = insta.photo_download(media_pk, tempdir)
+            elif media_type == 2 and product_type == 'feed': # video
+                media_path = insta.video_download(media_pk, tempdir)
+            elif media_type == 2 and product_type == 'clips': # reel
+                media_path = insta.clip_download(media_pk, tempdir)
+            elif media_type == 2 and product_type == 'igtv': # igtv
+                media_path = insta.igtv_download(media_pk, tempdir)
+            elif media_type == 8: # album
+                media_path = insta.album_download(media_pk, tempdir)
+            else:
+                await message.delete()
+                msg = "failed to download file."
+                print(msg)
+                await event.reply(msg)
+                return
+            await event.respond(f"#Bot\nLink: {url}", link_preview=False, file=media_path)
+            await message.delete()
+            await event.message.delete()
+    except Exception as e:
+        print(e)
+        await message.delete()
+        msg = "failed to download file."
+        print(msg)
+        await event.reply(msg)
+        
+def parse_args_insta(text):
+    url = None
+    try:
+        splitted_message = re.split(' ', text)
+        if len(splitted_message) == 0:
+            return url
+        elif len(splitted_message) == 1:
+            return url
+        elif len(splitted_message) == 2:
+            if get_int(splitted_message[1]) != 1:
+                return url
+        else:
+            return url
+        url = splitted_message[0]
+        return url
+    except:
+        return url
 
 def get_int(string):
     try:
@@ -53,7 +125,7 @@ def trim(input_path, output_path, start, end):
     input_stream = ffmpeg.input(input_path, ss=(str(datetime.timedelta(seconds=start))), to=(str(datetime.timedelta(seconds=end))))
     ffmpeg.output(input_stream, output_path, acodec='copy', vcodec='copy', loglevel=config['log_level']).run(overwrite_output=True)
 
-def parse_args(text):
+def parse_args_yt(text):
     resolution = None
     start = None
     end = None
@@ -91,17 +163,16 @@ def parse_args(text):
     except:
         return url, resolution, start, end
     
-
-@client.on(events.NewMessage(func=lambda e: e.chat_id in allowed_chats or e.sender.username in allowed_users, pattern=youtube_url_pattern))
-async def handler(event):
+@client.on(events.NewMessage(func=lambda e: e.chat_id in allowed_telegram_chats or e.sender.username in allowed_telegram_users, pattern=youtube_url_pattern))
+async def handler_yt(event):
     text = event.raw_text
-    url, resolution, start, end = parse_args(text)
+    url, resolution, start, end = parse_args_yt(text)
     if url is not None:
-        await download_vid(event, url, resolution, start, end)
+        await download_youtube(event, url, resolution, start, end)
     else:
         print("invalid input.")
 
-async def download_vid(event, url, resolution=None, start=None, end=None):
+async def download_youtube(event, url, resolution=None, start=None, end=None):
     msg = "#Bot: Downloading ....."
     print(msg)
     message = await event.reply(msg)
@@ -193,7 +264,7 @@ async def download_vid(event, url, resolution=None, start=None, end=None):
     except (http.client.IncompleteRead) as e:
         print(e)
         await message.delete()
-        await download_vid(event, url, resolution, start, end)
+        await download_youtube(event, url, resolution, start, end)
     except Exception as e:
         print(e)
         await message.delete()
