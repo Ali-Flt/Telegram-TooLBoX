@@ -1,0 +1,15 @@
+version: '1'
+services:
+  youtube_downloader_container:
+    image: youtube_downloader
+    restart: always
+    working_dir: /app
+    volumes:
+      - ./:/app
+    command: python3 -u youtube_downloader.py --config config.yaml
+    network_mode: "host"
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "100m"
+        max-file: "10"
