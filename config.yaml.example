@@ -1,4 +1,4 @@
-default_resolution_order: ["480p", "360p", "720p", "240p", "144p", "1080p", "1440p"]
+default_resolution_order: ["480p", "360p", "720p", "240p", "144p", "1080p", "1440p", "2160p"]
 allowed_users: ['you_username']
 allowed_chats: [-123456798]
 token: "your_token"

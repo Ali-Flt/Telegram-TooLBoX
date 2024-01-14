@@ -14,7 +14,7 @@ youtube_url_pattern = "^((?:https?:)?//)?((?:www|m).)?((?:youtube.com|youtu.be))
 parser = argparse.ArgumentParser()
 parser.add_argument('--config', default='config.yaml')
 args = parser.parse_args()
-resolutions = ['1080p', '720p', '480p', '360p', '240p', '144p']
+allowed_resolutions = ['2160p', '1440p', '1080p', '720p', '480p', '360p', '240p', '144p']
 config = {}
 with open(args.config) as f:
     config = yaml.load(f, Loader=yaml.loader.SafeLoader)
@@ -65,7 +65,7 @@ def parse_args(text):
         elif len(splitted_message) == 1:
             return url, resolution, start, end
         elif len(splitted_message) == 2:
-            if splitted_message[1] in resolutions:
+            if splitted_message[1] in allowed_resolutions:
                 resolution = splitted_message[1]
             elif get_int(splitted_message[1]) != 1:
                 return url, resolution, start, end
@@ -75,7 +75,7 @@ def parse_args(text):
             if start is None or end is None:
                 return url, resolution, start, end
         elif len(splitted_message) == 4:
-            if splitted_message[1] in resolutions:
+            if splitted_message[1] in allowed_resolutions:
                 resolution = splitted_message[1]
             start = get_int(splitted_message[2])
             end = get_int(splitted_message[3])
