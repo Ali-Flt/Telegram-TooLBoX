@@ -6,6 +6,8 @@ import yaml
 import argparse
 from telethon import TelegramClient, events
 import datetime
+import tempfile
+
 
 url_pattern = "(https:\/\/www\.|http:\/\/www\.|https:\/\/|http:\/\/)?[a-zA-Z]{2,}(\.[a-zA-Z]{2,})(\.[a-zA-Z]{2,})?\/[a-zA-Z0-9]{2,}|((https:\/\/www\.|http:\/\/www\.|https:\/\/|http:\/\/)?[a-zA-Z]{2,}(\.[a-zA-Z]{2,})(\.[a-zA-Z]{2,})?)|(https:\/\/www\.|http:\/\/www\.|https:\/\/|http:\/\/)?[a-zA-Z0-9]{2,}\.[a-zA-Z0-9]{2,}\.[a-zA-Z0-9]{2,}(\.[a-zA-Z0-9]{2,})?"
 youtube_url_pattern = "^((?:https?:)?//)?((?:www|m).)?((?:youtube.com|youtu.be))(/(?:[\w-]+?v=|embed/|v/|shorts/)?)([\w-]+)(\S+)?.*"
@@ -140,47 +142,41 @@ async def download_vid(event, url, resolution=None, start=None, end=None):
         print("Downloading .....")
         combined_name = None
         audio_name = None
-        if stream:
-            video_name = stream.download()
-            print(f"{video_title} downloaded successfully")
-            file_name = os.path.splitext(video_name)[0]
-            file_extention = os.path.splitext(video_name)[-1]
-            if start is not None and end is not None:
-                output_name = f'{file_name}_out{file_extention}'
-                trim(video_name, output_name, start=start, end=end)
+        with tempfile.TemporaryDirectory() as tempdir:
+            if stream:
+                video_name = stream.download(output_path=tempdir)
+                print(f"{video_title} downloaded successfully")
+                file_name = os.path.splitext(video_name)[0]
+                file_extention = os.path.splitext(video_name)[-1]
+                if start is not None and end is not None:
+                    output_name = f'{file_name}_out{file_extention}'
+                    trim(video_name, output_name, start=start, end=end)
+                else:
+                    output_name = video_name
             else:
-                output_name = video_name
-        else:
-            video_default_name = video.download()
-            file_name = os.path.splitext(video_default_name)[0]
-            file_extention = os.path.splitext(video_default_name)[-1]
-            video_name = f"{file_name}_video{file_extention}"
-            os.rename(video_default_name, video_name)
-            audio_name = audio.download()
-            print(f"{video_title} downloaded successfully")
-            combined_name = f'{file_name}_combined{file_extention}'
-            combine_video_audio(video_name, audio_name, combined_name)
-            if start is not None and end is not None:
-                output_name = f'{combined_name}_out{file_extention}'
-                trim(combined_name, output_name, start=start, end=end)
+                video_default_name = video.download(output_path=tempdir)
+                file_name = os.path.splitext(video_default_name)[0]
+                file_extention = os.path.splitext(video_default_name)[-1]
+                video_name = f"{file_name}_video{file_extention}"
+                os.rename(video_default_name, video_name)
+                audio_name = audio.download(output_path=tempdir)
+                print(f"{video_title} downloaded successfully")
+                combined_name = f'{file_name}_combined{file_extention}'
+                combine_video_audio(video_name, audio_name, combined_name)
+                if start is not None and end is not None:
+                    output_name = f'{combined_name}_out{file_extention}'
+                    trim(combined_name, output_name, start=start, end=end)
+                else:
+                    output_name = combined_name
+            msg = f"{video_title}\nLink: {url}"
+            if start is not None:
+                msg += f"\nStart: {datetime.timedelta(seconds=start)} ({start}s), End: {datetime.timedelta(seconds=end)} ({end}s)"
+            if stream:
+                msg += f"\nResolution: {stream.resolution}"
             else:
-                output_name = combined_name
-        msg = f"{video_title}\nLink: {url}"
-        if start is not None:
-            msg += f"\nStart: {datetime.timedelta(seconds=start)} ({start}s), End: {datetime.timedelta(seconds=end)} ({end}s)"
-        if stream:
-            msg += f"\nResolution: {stream.resolution}"
-        else:
-            msg += f"\nResolution: {video.resolution}"
-        await event.respond(msg, link_preview=False, file=output_name)
-        await event.message.delete()
-        silentremove(video_name)
-        silentremove(output_name)
-        if combined_name:
-            silentremove(combined_name)
-        if audio_name:
-            silentremove(audio_name)
-        
+                msg += f"\nResolution: {video.resolution}"
+            await event.respond(msg, link_preview=False, file=output_name)
+            await event.message.delete()
     except Exception as e:
         print(e)
         print("failed to download video.")
