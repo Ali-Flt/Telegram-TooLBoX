@@ -56,8 +56,10 @@ async def download_insta(event, url):
     print(msg)
     try:
         media_pk = insta.media_pk_from_url(url)
-        media_type = insta.media_info(media_pk).media_type
-        product_type = insta.media_info(media_pk).product_type
+        media_info = insta.media_info(media_pk)
+        media_type = media_info.media_type
+        product_type = media_info.product_type
+        caption = media_info.caption_text
         with tempfile.TemporaryDirectory() as tempdir:
             if media_type == 1: # photo
                 media_path = insta.photo_download(media_pk, tempdir)
@@ -75,7 +77,7 @@ async def download_insta(event, url):
                 print(msg)
                 await event.reply(msg)
                 return
-            await event.respond(f"#Bot\nLink: {url}", link_preview=False, file=media_path)
+            await event.respond(f"#Bot #Instagram\n{caption}\nLink: {url}", link_preview=False, file=media_path)
             await message.delete()
             await event.message.delete()
     except Exception as e:
@@ -250,7 +252,7 @@ async def download_youtube(event, url, resolution=None, start=None, end=None):
                     trim(combined_name, output_name, start=start, end=end)
                 else:
                     output_name = combined_name
-            msg = f"#Bot\n{video_title}\nLink: {url}"
+            msg = f"#Bot #Youtube\n{video_title}\nLink: {url}"
             if start is not None:
                 msg += f"\nStart: {datetime.timedelta(seconds=start)} ({start}s), End: {datetime.timedelta(seconds=end)} ({end}s)"
             if stream:
