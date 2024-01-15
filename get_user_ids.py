@@ -23,6 +23,7 @@ client = TelegramClient(config['session'], config['api_id'], config['api_hash'],
 if __name__ == '__main__':
     allowed_youtube_user_ids = []
     allowed_insta_user_ids = []
+    allowed_gifying_user_ids = []
     
     with client:
         for user in config['allowed_youtube_usernames']:
@@ -31,6 +32,10 @@ if __name__ == '__main__':
         for user in config['allowed_insta_usernames']:
             entity = client.get_entity(user)
             allowed_insta_user_ids.append(entity.id)
+        for user in config['allowed_gifying_usernames']:
+            entity = client.get_entity(user)
+            allowed_gifying_user_ids.append(entity.id)
         
     print(f"allowed_youtube_user_ids: {allowed_youtube_user_ids}")
     print(f"allowed_insta_user_ids: {allowed_insta_user_ids}")
+    print(f"allowed_gifying_user_ids: {allowed_gifying_user_ids}")

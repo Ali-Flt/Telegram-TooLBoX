@@ -26,6 +26,10 @@ def silentremove(filename):
         if e.errno != errno.ENOENT:
             raise
 
+def remove_audio(video_file, output_file):
+    video_stream = ffmpeg.input(video_file)
+    ffmpeg.output(video_stream, output_file, vcodec='copy', an=None, loglevel=config['log_level']).run(overwrite_output=True)
+    
 def combine_video_audio(video_file, audio_file, output_file):
     video_stream = ffmpeg.input(video_file)
     audio_stream = ffmpeg.input(audio_file)
@@ -67,6 +71,7 @@ async def abort_and_reply(msg, msg_to_delete, event):
 url_pattern = "(https:\/\/www\.|http:\/\/www\.|https:\/\/|http:\/\/)?[a-zA-Z]{2,}(\.[a-zA-Z]{2,})(\.[a-zA-Z]{2,})?\/[a-zA-Z0-9]{2,}|((https:\/\/www\.|http:\/\/www\.|https:\/\/|http:\/\/)?[a-zA-Z]{2,}(\.[a-zA-Z]{2,})(\.[a-zA-Z]{2,})?)|(https:\/\/www\.|http:\/\/www\.|https:\/\/|http:\/\/)?[a-zA-Z0-9]{2,}\.[a-zA-Z0-9]{2,}\.[a-zA-Z0-9]{2,}(\.[a-zA-Z0-9]{2,})?"
 youtube_url_pattern = "^((?:https?:)?//)?((?:www|m).)?((?:youtube.com|youtu.be))(/(?:[\w-]+?v=|embed/|v/|shorts/)?)([\w-]+)(\S+)?.*"
 instagram_url_pattern = "(?:(?:http|https):\/\/)?(?:www\.)?(?:instagram\.com|instagr\.am)\/([A-Za-z0-9-_\.]+).*"
+make_gif_patter = "^gif.*"
 allowed_resolutions = ['2160p', '1440p', '1080p', '720p', '480p', '360p', '240p', '144p']
 
 yt_parser = argparse.ArgumentParser(add_help=False, prog='youtube_media_url', exit_on_error=False)
@@ -84,6 +89,10 @@ insta_parser = argparse.ArgumentParser(add_help=False, prog='instagram_media_url
 insta_parser.add_argument('-1', dest='enable', action='store_const', const=True, default=False, help="add this to enable the bot")
 insta_parser.add_argument('-h', dest='help', action='store_const', const=True, default=False, help="print this help command")
 
+gif_parser = argparse.ArgumentParser(add_help=False, prog='gif', exit_on_error=False)
+gif_parser.add_argument('-1', dest='enable', action='store_const', const=True, default=False, help="add this to enable the bot")
+gif_parser.add_argument('-h', dest='help', action='store_const', const=True, default=False, help="print this help command")
+
 parser = argparse.ArgumentParser()
 parser.add_argument('--config', default='config.yaml')
 args = parser.parse_args()
@@ -92,11 +101,12 @@ config = {}
 with open(args.config) as f:
     config = yaml.load(f, Loader=yaml.loader.SafeLoader)
     
-
 allowed_youtube_user_ids = config['allowed_youtube_user_ids']
 allowed_youtube_chat_ids = config['allowed_youtube_chat_ids']
 allowed_insta_user_ids = config['allowed_insta_user_ids']
 allowed_insta_chat_ids = config['allowed_insta_chat_ids']
+allowed_gifying_chat_ids = config['allowed_gifying_chat_ids']
+allowed_gifying_user_ids = config['allowed_gifying_user_ids']
 insta = Client()
 
 proxy = None
@@ -111,10 +121,51 @@ if config['proxy']:
 client = TelegramClient(config['session'], config['api_id'], config['api_hash'], proxy=proxy).start(phone=config['phone_number'])
 insta.login_by_sessionid(config['instagram_session_id'])
 
+@client.on(events.NewMessage(func=lambda e: e.chat_id in allowed_gifying_chat_ids or e.sender_id in allowed_gifying_user_ids, pattern=make_gif_patter))
+async def handler_make_gif(event):
+    args = parse_args_gif(event.raw_text)
+    if args is None:
+        return
+    if args.help:
+        await event.message.delete()
+        await event.respond(f"`{gif_parser.format_help()}`\nDon't forget to attach the video to your message.\n__A Gif maker by @a_flt__")
+        return
+    if not args.enable:
+        return
+    if event.message.video:
+        await make_gif(event)
+
+def parse_args_gif(text):
+    splitted_text = re.split(' ', text)
+    if len(splitted_text) < 2:
+        return None
+    try:
+        return gif_parser.parse_known_args(splitted_text[1:])[0]
+    except Exception as e:
+        print(e)
+        return None
+    
+async def make_gif(event):
+    message = "#Bot: converting to gif..."
+    await event.reply(message)
+    print(message)
+    try:
+        with tempfile.TemporaryDirectory() as tempdir:
+            file_name = os.path.join(tempdir, f"{event.id}.mp4")
+            await event.message.download_media(file=file_name)
+            output_name = os.path.join(tempdir, f"{event.id}_noaudio.mp4")
+            remove_audio(file_name, output_name)
+            await event.respond(f"#Bot #gif_maker", file=output_name, nosound_video=False)
+            await event.message.delete()
+    except Exception as e:
+        print(e)
+        msg = "#Bot: failed to convert to gif."
+        abort_and_reply(msg, message, event)
+        
+        
 @client.on(events.NewMessage(func=lambda e: e.chat_id in allowed_insta_chat_ids or e.sender_id in allowed_insta_user_ids, pattern=instagram_url_pattern))
 async def handler_insta(event):
-    text = event.raw_text
-    url, args = parse_args_insta(text)
+    url, args = parse_args_insta(event.raw_text)
     if args is None:
         return
     if args.help:
@@ -168,13 +219,10 @@ async def download_insta(event, url):
         print(e)
         msg = "#Bot: failed to download file."
         await abort_and_reply(msg, message, event)
-        
-
-    
+            
 @client.on(events.NewMessage(func=lambda e: e.chat_id in allowed_youtube_chat_ids or e.sender_id in allowed_youtube_user_ids, pattern=youtube_url_pattern))
 async def handler_yt(event):
-    text = event.raw_text
-    url, args = parse_args_yt(text)
+    url, args = parse_args_yt(event.raw_text)
     if args is None:
         return
     if args.help:
