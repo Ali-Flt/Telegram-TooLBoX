@@ -5,4 +5,3 @@ pyyaml==6.0.1
 python-socks[asyncio]==2.4.4
 instagrapi==2.0.1
 pillow==10.2.0
-# hezar[audio]==0.35.1
