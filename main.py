@@ -27,6 +27,10 @@ yt_parser.add_argument('-vo', dest='noaudio', action='store_const', const=True, 
 yt_parser.add_argument('-gif', dest='gif', action='store_const', const=True, default=False, help="convert video to gif")
 yt_parser.add_argument('-h', dest='help', action='store_const', const=True, default=False, help="print this help command")
 
+insta_parser = argparse.ArgumentParser(add_help=False, prog='https://www.instagram.com/video_id', exit_on_error=False)
+insta_parser.add_argument('-1', dest='enable', action='store_const', const=True, default=False, help="add this to enable the bot")
+insta_parser.add_argument('-h', dest='help', action='store_const', const=True, default=False, help="print this help command")
+
 parser = argparse.ArgumentParser()
 parser.add_argument('--config', default='config.yaml')
 args = parser.parse_args()
@@ -40,7 +44,7 @@ allowed_youtube_user_ids = config['allowed_youtube_user_ids']
 allowed_youtube_chat_ids = config['allowed_youtube_chat_ids']
 allowed_insta_user_ids = config['allowed_insta_user_ids']
 allowed_insta_chat_ids = config['allowed_insta_chat_ids']
-# insta = Client()
+insta = Client()
 
 proxy = None
 if config['proxy']:
@@ -49,19 +53,25 @@ if config['proxy']:
                "https": proxy_str}
     helpers.install_proxy(proxies)
     proxy = config['proxy']
-    # insta.set_proxy(proxy_str)
+    insta.set_proxy(proxy_str)
     
 client = TelegramClient(config['session'], config['api_id'], config['api_hash'], proxy=proxy).start(phone=config['phone_number'])
-# insta.login_by_sessionid(config['instagram_session_id'])
+insta.login_by_sessionid(config['instagram_session_id'])
 
 @client.on(events.NewMessage(func=lambda e: e.chat_id in allowed_insta_chat_ids or e.sender_id in allowed_insta_user_ids, pattern=instagram_url_pattern))
 async def handler_insta(event):
     text = event.raw_text
-    url = parse_args_insta(text)
+    url, args = parse_args_insta(text)
+    if args is None:
+        return
+    if args.help:
+        await event.message.delete()
+        await event.respond(f"`{insta_parser.format_help()}`")
+        return
+    if not args.enable:
+        return
     if url is not None:
         await download_insta(event, url)
-    else:
-        print("invalid input.")
 
 async def download_insta(event, url):
     msg = "#Bot: Downloading..."
@@ -97,22 +107,14 @@ async def download_insta(event, url):
         await abort_and_reply(msg, message, event)
         
 def parse_args_insta(text):
-    url = None
+    splitted_text = re.split(' ', text)
+    if len(splitted_text) < 2:
+        return None, None
     try:
-        splitted_message = re.split(' ', text)
-        if len(splitted_message) == 0:
-            return url
-        elif len(splitted_message) == 1:
-            return url
-        elif len(splitted_message) == 2:
-            if get_int(splitted_message[1]) != 1:
-                return url
-        else:
-            return url
-        url = splitted_message[0]
-        return url
-    except:
-        return url
+        return splitted_text[0], insta_parser.parse_known_args(splitted_text[1:])[0]
+    except Exception as e:
+        print(e)
+        return None, None
 
 def get_int(string=None):
     if string is None:
