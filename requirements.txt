@@ -1,7 +1,8 @@
 telethon==1.33.1
-pytube==15.0.0
 ffmpeg-python==0.2.0
 pyyaml==6.0.1
 python-socks[asyncio]==2.4.4
 instagrapi==2.0.1
 pillow==10.2.0
+#pytube==15.0.0
+pytube @ git+https://github.com/erdum/pytube-age-restriction-fix.git@c35012f2ac6e6dfbb477eaf79e89161d71fc893e
