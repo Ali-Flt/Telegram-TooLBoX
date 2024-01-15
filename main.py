@@ -9,7 +9,7 @@ import datetime
 import tempfile
 import http
 from instagrapi import Client
-from hezar.models import Model
+# from hezar.models import Model
 
 url_pattern = "(https:\/\/www\.|http:\/\/www\.|https:\/\/|http:\/\/)?[a-zA-Z]{2,}(\.[a-zA-Z]{2,})(\.[a-zA-Z]{2,})?\/[a-zA-Z0-9]{2,}|((https:\/\/www\.|http:\/\/www\.|https:\/\/|http:\/\/)?[a-zA-Z]{2,}(\.[a-zA-Z]{2,})(\.[a-zA-Z]{2,})?)|(https:\/\/www\.|http:\/\/www\.|https:\/\/|http:\/\/)?[a-zA-Z0-9]{2,}\.[a-zA-Z0-9]{2,}\.[a-zA-Z0-9]{2,}(\.[a-zA-Z0-9]{2,})?"
 youtube_url_pattern = "^((?:https?:)?//)?((?:www|m).)?((?:youtube.com|youtu.be))(/(?:[\w-]+?v=|embed/|v/|shorts/)?)([\w-]+)(\S+)?.*"
@@ -28,12 +28,12 @@ allowed_youtube_user_ids = config['allowed_youtube_user_ids']
 allowed_youtube_chat_ids = config['allowed_youtube_chat_ids']
 allowed_insta_user_ids = config['allowed_insta_user_ids']
 allowed_insta_chat_ids = config['allowed_insta_chat_ids']
-allowed_stt_chat_ids = config['allowed_stt_chat_ids']
+# allowed_stt_chat_ids = config['allowed_stt_chat_ids']
 
 insta = Client()
-print("loading model...")
-model = Model.load("hezarai/whisper-small-fa")
-print("model loaded successfully...")
+# print("loading model...")
+# model = Model.load("hezarai/whisper-small-fa")
+# print("model loaded successfully...")
 
 proxy = None
 if config['proxy']:
@@ -47,18 +47,18 @@ if config['proxy']:
 client = TelegramClient(config['session'], config['api_id'], config['api_hash'], proxy=proxy).start(phone=config['phone_number'])
 insta.login_by_sessionid(config['instagram_session_id'])
 
-@client.on(events.NewMessage(func=lambda e: (e.is_private or e.chat_id in allowed_stt_chat_ids) and e.message.voice))
-async def handler_insta(event):
-    try:
-        with tempfile.TemporaryDirectory() as tempdir:
-            file_name = os.path.join(tempdir, f"{event.id}.mp3")
-            await event.message.download_media(file=file_name)
-            transcripts = model.predict(file_name)
-            transcripts = transcripts[0]['text']
-            await event.reply(f"#Bot #STT\n{transcripts}")
-    except Exception as e:
-        print(e)
-        print("failed to convert speech to text.")
+# @client.on(events.NewMessage(func=lambda e: (e.is_private or e.chat_id in allowed_stt_chat_ids) and e.message.voice))
+# async def handler_insta(event):
+#     try:
+#         with tempfile.TemporaryDirectory() as tempdir:
+#             file_name = os.path.join(tempdir, f"{event.id}.mp3")
+#             await event.message.download_media(file=file_name)
+#             transcripts = model.predict(file_name)
+#             transcripts = transcripts[0]['text']
+#             await event.reply(f"#Bot #STT\n{transcripts}")
+#     except Exception as e:
+#         print(e)
+#         print("failed to convert speech to text.")
 
 @client.on(events.NewMessage(func=lambda e: e.chat_id in allowed_insta_chat_ids or e.sender_id in allowed_insta_user_ids, pattern=instagram_url_pattern))
 async def handler_insta(event):
