@@ -9,8 +9,8 @@ Several ease of use tools for telegram.
 # How to use
 1. create `config.yaml` based on `config.yaml.example` (skip the allowed_user_ids parameters at this step)
 2. run `./build_docker_image.sh`
-3. run `./get_user_ids.sh` and store the results in config.yaml
-4. run `./create_telegram_session.sh` and enter the asked code
+3. run `./create_telegram_session.sh` and enter the asked code
+4. run `./get_user_ids.sh` and store the results in config.yaml
 5. run `docker compose up`
 
 # Donations
