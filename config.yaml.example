@@ -5,6 +5,7 @@ allowed_youtube_chat_ids: [-123456]
 allowed_insta_usernames: ['username1', 'username2']
 allowed_insta_user_ids: [123456, 123456]
 allowed_insta_chat_ids: [-123456]
+allowed_stt_chat_ids: []
 token: "your_token"
 session: 'telegram_session'
 api_id: 12345679
