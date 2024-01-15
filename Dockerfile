@@ -2,7 +2,7 @@ FROM python:3.11
 WORKDIR /app
 ENV DEBIAN_FRONTEND noninteractive
 
-RUN apt-get update && apt install -y ffmpeg
+RUN apt-get update && apt install -y ffmpeg git
 
 # Pip reqs
 COPY requirements.txt ./
