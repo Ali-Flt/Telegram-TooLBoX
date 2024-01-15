@@ -26,11 +26,11 @@ def silentremove(filename):
         if e.errno != errno.ENOENT:
             raise
 
-def convet_to_mp3(audio_file):
+def convet_to_aac(audio_file):
     audio_stream = ffmpeg.input(audio_file)
     file_name = os.path.splitext(audio_file)[0]
-    output_file = f"{file_name}.mp3"
-    ffmpeg.output(audio_stream, output_file, vn=None, loglevel=config['log_level']).run(overwrite_output=True)
+    output_file = f"{file_name}.aac"
+    ffmpeg.output(audio_stream, output_file, acodec='copy', vn=None, loglevel=config['log_level']).run(overwrite_output=True)
     return output_file
     
 def remove_audio(video_file, output_file):
@@ -195,7 +195,7 @@ def parse_args_insta(text):
         return None, None
     
 async def download_insta(event, url):
-    msg = "#Bot: Downloading..."
+    msg = "#Bot: Downloading Instagram media..."
     message = await event.reply(msg)
     print(msg)
     try:
@@ -329,7 +329,7 @@ async def download_youtube(event, url, args):
                     trim(audio_name, output_name, start=start, end=end)
                 else:
                     output_name = audio_name
-                output_name = convet_to_mp3(output_name)
+                output_name = convet_to_aac(output_name)
             elif args.noaudio or args.gif:
                 if args.noaudio:
                     nosound_video = True
