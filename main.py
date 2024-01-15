@@ -297,7 +297,7 @@ async def download_youtube(event, url, resolution=None, start=None, end=None):
             if start is None:
                 start = 0
                 end = yt.length
-            msg += f"\nStart: {datetime.timedelta(seconds=start)} ({start}s), End: {datetime.timedelta(seconds=end)} ({end}s)"
+            msg += f"\nStart: {datetime.timedelta(seconds=start)}, End: {datetime.timedelta(seconds=end)}"
             if stream:
                 msg += f"\nResolution: {stream.resolution}"
             else:
