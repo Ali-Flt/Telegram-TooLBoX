@@ -1,4 +1,3 @@
-from sqlite3 import TimestampFromTicks
 from pytube import YouTube, helpers
 import ffmpeg
 import os, errno
@@ -10,13 +9,14 @@ import datetime
 import tempfile
 import http
 from instagrapi import Client
+from argparse import RawTextHelpFormatter
 
 url_pattern = "(https:\/\/www\.|http:\/\/www\.|https:\/\/|http:\/\/)?[a-zA-Z]{2,}(\.[a-zA-Z]{2,})(\.[a-zA-Z]{2,})?\/[a-zA-Z0-9]{2,}|((https:\/\/www\.|http:\/\/www\.|https:\/\/|http:\/\/)?[a-zA-Z]{2,}(\.[a-zA-Z]{2,})(\.[a-zA-Z]{2,})?)|(https:\/\/www\.|http:\/\/www\.|https:\/\/|http:\/\/)?[a-zA-Z0-9]{2,}\.[a-zA-Z0-9]{2,}\.[a-zA-Z0-9]{2,}(\.[a-zA-Z0-9]{2,})?"
 youtube_url_pattern = "^((?:https?:)?//)?((?:www|m).)?((?:youtube.com|youtu.be))(/(?:[\w-]+?v=|embed/|v/|shorts/)?)([\w-]+)(\S+)?.*"
-instagram_url_pattern = "((?:https?:\/\/)?(?:www\.)?instagram\.com\/(?:p|reel)\/([^/?#&]+)).*"
+instagram_url_pattern = "(?:(?:http|https):\/\/)?(?:www\.)?(?:instagram\.com|instagr\.am)\/([A-Za-z0-9-_\.]+).*"
 allowed_resolutions = ['2160p', '1440p', '1080p', '720p', '480p', '360p', '240p', '144p']
 
-yt_parser = argparse.ArgumentParser(add_help=False, prog='https://www.youtube.com/video_id', exit_on_error=False)
+yt_parser = argparse.ArgumentParser(add_help=False, prog='https://www.youtube.com/video_id', exit_on_error=False, formatter_class=RawTextHelpFormatter)
 yt_parser.add_argument('-1', dest='enable', action='store_const', const=True, default=False, help="add this to enable the bot")
 yt_parser.add_argument('-r', dest='resolution', type=str, help="video resolution (e.g. 1080p)")
 yt_parser.add_argument('-s', dest='start', type=str, help="start time in seconds or MM:SS")
@@ -27,7 +27,7 @@ yt_parser.add_argument('-vo', dest='noaudio', action='store_const', const=True, 
 yt_parser.add_argument('-gif', dest='gif', action='store_const', const=True, default=False, help="convert video to gif")
 yt_parser.add_argument('-h', dest='help', action='store_const', const=True, default=False, help="print this help command")
 
-insta_parser = argparse.ArgumentParser(add_help=False, prog='https://www.instagram.com/video_id', exit_on_error=False)
+insta_parser = argparse.ArgumentParser(add_help=False, prog='https://www.instagram.com/video_id', exit_on_error=False, formatter_class=RawTextHelpFormatter)
 insta_parser.add_argument('-1', dest='enable', action='store_const', const=True, default=False, help="add this to enable the bot")
 insta_parser.add_argument('-h', dest='help', action='store_const', const=True, default=False, help="print this help command")
 
