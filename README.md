@@ -18,8 +18,7 @@ Send youtube links in one of these formates if you want it to convert into the v
 6. link resolution start_time end_time
 
 - resolution example: `1080p`, `720p`, ...
-- start_time and end_time are in one of the following formats: `seconds`, `MM:SS`, `HH:MM:SS`.
-- duration is in `seconds`.
+- start_time, duration and end_time are in one of the following formats: `seconds`, `MM:SS`, `HH:MM:SS`.
 
 Send instagram links in this format:
 1. link 1
