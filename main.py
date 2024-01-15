@@ -55,9 +55,10 @@ async def handler_insta(event):
             await event.message.download_media(file=file_name)
             transcripts = model.predict(file_name)
             transcripts = transcripts[0]['text']
-            await event.reply(f"#Bot\n{transcripts}")
+            await event.reply(f"#Bot #STT\n{transcripts}")
     except Exception as e:
         print(e)
+        print("failed to convert speech to text.")
 
 @client.on(events.NewMessage(func=lambda e: e.chat_id in allowed_insta_chat_ids or e.sender_id in allowed_insta_user_ids, pattern=instagram_url_pattern))
 async def handler_insta(event):
