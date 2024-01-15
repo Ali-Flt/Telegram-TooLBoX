@@ -12,11 +12,14 @@ Automatically download youtube and instagram videos and send it to the correspon
 Send youtube links in one of these formates if you want it to convert into the video:
 1. link 1
 2. link resolution
-3. link start_time end_time
-4. link resolution start_time end_time
+3. link start_time+duration
+4. link resolution start_time+duration
+5. link start_time end_time
+6. link resolution start_time end_time
 
 - resolution example: `1080p`, `720p`, ...
-- start_time and end_time are in seconds.
+- start_time and end_time are in one of the following formats: `seconds`, `MM:SS`, `HH:MM:SS`.
+- duration is in `seconds`.
 
 Send instagram links in this format:
 1. link 1

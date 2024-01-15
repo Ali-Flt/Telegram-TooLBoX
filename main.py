@@ -73,20 +73,16 @@ async def download_insta(event, url):
             elif media_type == 8: # album
                 media_path = insta.album_download(media_pk, tempdir)
             else:
-                await message.delete()
                 msg = "#Bot: failed to download file."
-                print(msg)
-                await event.reply(msg)
+                await abort_and_reply(msg, message, event)
                 return
             await event.respond(f"#Bot #Instagram\n{caption}\nLink: {url}", link_preview=False, file=media_path)
             await message.delete()
             await event.message.delete()
     except Exception as e:
         print(e)
-        await message.delete()
         msg = "#Bot: failed to download file."
-        print(msg)
-        await event.reply(msg)
+        await abort_and_reply(msg, message, event)
         
 def parse_args_insta(text):
     url = None
@@ -132,26 +128,32 @@ def get_timestamp(time_str: str):
     int_time = get_int(time_str)
     if int_time is not None:
         return int_time
-    else:
-        hour = 0
-        minute = 0
-        second = 0
+    hour = 0
+    try:
+        timestamp = datetime.datetime.strptime(time_str, "%M:%S")
+    except ValueError:
         try:
-            timestamp = datetime.datetime.strptime(time_str, "%M:%S")
+            timestamp = datetime.datetime.strptime(time_str, "%H:%M:%S")
+            hour = timestamp.hour
         except ValueError:
-            try:
-                timestamp = datetime.datetime.strptime(time_str, "%H:%M:%S")
-                hour = timestamp.hour
-            except ValueError:
-                return None
-        minute = timestamp.minute
-        second = timestamp.second
-        return hour*3600 + minute*60 + second
+            return None
+    return hour*3600 + timestamp.minute*60 + timestamp.second
             
 def get_valid_resolution(res_str: str):
     if res_str in allowed_resolutions:
         return res_str
     return None
+
+def get_timestamp_with_delta(time_str: str):
+    temp = time_str.split('+')
+    if len(temp) != 2:
+        return None, None
+    end = None
+    start = get_timestamp(temp[0])
+    delta = get_timestamp(temp[1])
+    if start is not None and delta is not None:
+        end = start + delta
+    return start, end
     
 def parse_args_yt(text):
     resolution = None
@@ -167,12 +169,20 @@ def parse_args_yt(text):
         elif len(splitted_message) == 2:
             resolution = get_valid_resolution(splitted_message[1])
             if resolution is None and get_int(splitted_message[1]) != 1:
-                return url, resolution, start, end
+                start, end = get_timestamp_with_delta(splitted_message[1])
+                if start is None or end is None:
+                    return url, resolution, start, end
         elif len(splitted_message) == 3:
-            start = get_timestamp(splitted_message[1])
-            end = get_timestamp(splitted_message[2])
-            if start is None or end is None:
-                return url, resolution, start, end
+            resolution = get_valid_resolution(splitted_message[1])
+            if resolution is None:
+                start = get_timestamp(splitted_message[1])
+                end = get_timestamp(splitted_message[2])
+                if start is None or end is None:
+                    return url, resolution, start, end
+            else:
+                start, end = get_timestamp_with_delta(splitted_message[2])
+                if start is None or end is None:
+                    return url, resolution, start, end
         elif len(splitted_message) == 4:
             resolution = get_valid_resolution(splitted_message[1])
             start = get_timestamp(splitted_message[2])
@@ -198,6 +208,12 @@ async def handler_yt(event):
     else:
         print("invalid input.")
 
+
+async def abort_and_reply(msg, msg_to_delete, event):
+    await msg_to_delete.delete()
+    print(msg)
+    await event.reply(msg)
+    
 async def download_youtube(event, url, resolution=None, start=None, end=None):
     msg = "#Bot: Downloading ....."
     print(msg)
@@ -206,11 +222,16 @@ async def download_youtube(event, url, resolution=None, start=None, end=None):
         resolutions = config['default_resolution_order']
         yt = YouTube(url)
         if yt.length > config['max_video_length']:
-            await message.delete()
             msg = f"#Bot: video is longer than {config['max_video_length']} seconds."
-            print(msg)
-            await event.reply(msg)
+            await abort_and_reply(msg, message, event)
             return
+        if start is not None:
+            start = min(start, yt.length)
+            end = min(end, yt.length)
+            if start >= end:
+                msg = "#Bot: timestamps out of range."
+                await abort_and_reply(msg, message, event)
+                return
         video_title = yt.title
         print(f"Downloading {video_title} ...")
         streams = yt.streams
@@ -237,16 +258,12 @@ async def download_youtube(event, url, resolution=None, start=None, end=None):
         if stream is None and video is None:
             video = streams.filter(only_video=True).get_highest_resolution()
         if stream is None and video is None:
-            await message.delete()
             msg ="#Bot: no video stream found."
-            await event.reply(msg)
-            print(msg)
+            await abort_and_reply(msg, message, event)
             return
         elif stream is None and audio is None:
-            await message.delete()
             msg = "#Bot: no audio stream found."
-            await event.reply(msg)
-            print(msg)
+            await abort_and_reply(msg, message, event)
             return
         combined_name = None
         audio_name = None
@@ -271,14 +288,16 @@ async def download_youtube(event, url, resolution=None, start=None, end=None):
                 print(f"{video_title} downloaded successfully")
                 combined_name = f'{file_name}_combined{file_extention}'
                 combine_video_audio(video_name, audio_name, combined_name)
-                if start is not None and end is not None:
+                if start is not None:
                     output_name = f'{file_name}_out{file_extention}'
                     trim(combined_name, output_name, start=start, end=end)
                 else:
                     output_name = combined_name
             msg = f"#Bot #Youtube\n{video_title}\nLink: {url}"
-            if start is not None:
-                msg += f"\nStart: {datetime.timedelta(seconds=start)} ({start}s), End: {datetime.timedelta(seconds=end)} ({end}s)"
+            if start is None:
+                start = 0
+                end = yt.length
+            msg += f"\nStart: {datetime.timedelta(seconds=start)} ({start}s), End: {datetime.timedelta(seconds=end)} ({end}s)"
             if stream:
                 msg += f"\nResolution: {stream.resolution}"
             else:
@@ -292,10 +311,8 @@ async def download_youtube(event, url, resolution=None, start=None, end=None):
         await download_youtube(event, url, resolution, start, end)
     except Exception as e:
         print(e)
-        await message.delete()
         msg = "#Bot: failed to download video."
-        await event.reply(msg)
-        print(msg)
+        await abort_and_reply(msg, message, event)
 
 if __name__ == '__main__':
     client.run_until_disconnected()
