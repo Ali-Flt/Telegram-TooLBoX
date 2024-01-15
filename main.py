@@ -26,6 +26,13 @@ def silentremove(filename):
         if e.errno != errno.ENOENT:
             raise
 
+def convet_to_mp3(audio_file):
+    audio_stream = ffmpeg.input(audio_file)
+    file_name = os.path.splitext(audio_file)[0]
+    output_file = f"{file_name}_mp3.mp3"
+    ffmpeg.output(audio_stream, output_file, vn=None, loglevel=config['log_level']).run(overwrite_output=True)
+    return output_file
+    
 def remove_audio(video_file, output_file):
     video_stream = ffmpeg.input(video_file)
     ffmpeg.output(video_stream, output_file, vcodec='copy', an=None, loglevel=config['log_level']).run(overwrite_output=True)
@@ -254,7 +261,6 @@ async def download_youtube(event, url, args):
             msg = f"#Bot: video is longer than {config['max_video_length']} seconds."
             await abort_and_reply(msg, message, event)
             return
-        
         start = get_timestamp(args.start)
         duration = get_timestamp(args.duration) 
         end = get_timestamp(args.end)
@@ -318,10 +324,11 @@ async def download_youtube(event, url, args):
                 print(f"{video_title} downloaded successfully")
                 file_extention = os.path.splitext(audio_name)[-1]
                 if do_trim:
-                    output_name = f'{event.id}_out{file_extention}'
+                    output_name = os.path.join(tempdir, f'{event.id}_out{file_extention}')
                     trim(audio_name, output_name, start=start, end=end)
                 else:
                     output_name = audio_name
+                output_name = convet_to_mp3(output_name)
             elif args.noaudio or args.gif:
                 if args.noaudio:
                     nosound_video = True
@@ -333,7 +340,7 @@ async def download_youtube(event, url, args):
                 print(f"{video_title} downloaded successfully")
                 file_extention = os.path.splitext(video_name)[-1]
                 if do_trim:
-                    output_name = f'{event.id}_out{file_extention}'
+                    output_name = os.path.join(tempdir, f'{event.id}_out{file_extention}')
                     trim(video_name, output_name, start=start, end=end)
                 else:
                     output_name = video_name
@@ -342,21 +349,21 @@ async def download_youtube(event, url, args):
                 print(f"{video_title} downloaded successfully")
                 file_extention = os.path.splitext(video_name)[-1]
                 if do_trim:
-                    output_name = f'{event.id}_out{file_extention}'
+                    output_name = os.path.join(tempdir, f'{event.id}_out{file_extention}')
                     trim(video_name, output_name, start=start, end=end)
                 else:
                     output_name = video_name
             else:
                 video_default_name = video.download(output_path=tempdir, max_retries=10)
                 file_extention = os.path.splitext(video_default_name)[-1]
-                video_name = f"{event.id}_video{file_extention}"
+                video_name = os.path.join(tempdir, f"{event.id}_video{file_extention}")
                 os.rename(video_default_name, video_name)
                 audio_name = audio.download(output_path=tempdir, max_retries=10)
                 print(f"{video_title} downloaded successfully")
-                combined_name = f'{event.id}_combined{file_extention}'
+                combined_name = os.path.join(tempdir, f'{event.id}_combined{file_extention}')
                 combine_video_audio(video_name, audio_name, combined_name)
                 if do_trim:
-                    output_name = f'{event.id}_out{file_extention}'
+                    output_name = os.path.join(tempdir, f'{event.id}_out{file_extention}')
                     trim(combined_name, output_name, start=start, end=end)
                 else:
                     output_name = combined_name
@@ -377,7 +384,6 @@ async def download_youtube(event, url, args):
         await download_youtube(event, url, resolution, start, end)
     except Exception as e:
         print(e)
-        # print(traceback.format_exc())
         msg = "#Bot: failed to download video."
         await abort_and_reply(msg, message, event)
 
