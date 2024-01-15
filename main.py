@@ -128,6 +128,31 @@ def trim(input_path, output_path, start, end):
     input_stream = ffmpeg.input(input_path, ss=(str(datetime.timedelta(seconds=start))), to=(str(datetime.timedelta(seconds=end))))
     ffmpeg.output(input_stream, output_path, acodec='copy', vcodec='copy', loglevel=config['log_level']).run(overwrite_output=True)
 
+def get_timestamp(time_str: str):
+    int_time = get_int(time_str)
+    if int_time is not None:
+        return int_time
+    else:
+        hour = 0
+        minute = 0
+        second = 0
+        try:
+            timestamp = datetime.datetime.strptime(time_str, "%M:%S")
+        except ValueError:
+            try:
+                timestamp = datetime.datetime.strptime(time_str, "%H:%M:%S")
+                hour = timestamp.hour
+            except ValueError:
+                return None
+        minute = timestamp.minute
+        second = timestamp.second
+        return hour*3600 + minute*60 + second
+            
+def get_valid_resolution(res_str: str):
+    if res_str in allowed_resolutions:
+        return res_str
+    return None
+    
 def parse_args_yt(text):
     resolution = None
     start = None
@@ -140,20 +165,18 @@ def parse_args_yt(text):
         elif len(splitted_message) == 1:
             return url, resolution, start, end
         elif len(splitted_message) == 2:
-            if splitted_message[1] in allowed_resolutions:
-                resolution = splitted_message[1]
-            elif get_int(splitted_message[1]) != 1:
+            resolution = get_valid_resolution(splitted_message[1])
+            if resolution is None and get_int(splitted_message[1]) != 1:
                 return url, resolution, start, end
         elif len(splitted_message) == 3:
-            start = get_int(splitted_message[1])
-            end = get_int(splitted_message[2])
+            start = get_timestamp(splitted_message[1])
+            end = get_timestamp(splitted_message[2])
             if start is None or end is None:
                 return url, resolution, start, end
         elif len(splitted_message) == 4:
-            if splitted_message[1] in allowed_resolutions:
-                resolution = splitted_message[1]
-            start = get_int(splitted_message[2])
-            end = get_int(splitted_message[3])
+            resolution = get_valid_resolution(splitted_message[1])
+            start = get_timestamp(splitted_message[2])
+            end = get_timestamp(splitted_message[3])
             if resolution is None or start is None or end is None:
                 return url, resolution, start, end
         else:
