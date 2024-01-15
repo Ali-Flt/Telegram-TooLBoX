@@ -10,6 +10,60 @@ import tempfile
 import http
 from instagrapi import Client
 
+
+def get_int(string=None):
+    if string is None:
+        return None
+    try:
+        return int(string)
+    except ValueError:
+        return None
+
+def silentremove(filename):
+    try:
+        os.remove(filename)
+    except OSError as e:
+        if e.errno != errno.ENOENT:
+            raise
+
+def combine_video_audio(video_file, audio_file, output_file):
+    video_stream = ffmpeg.input(video_file)
+    audio_stream = ffmpeg.input(audio_file)
+    ffmpeg.output(audio_stream, video_stream, output_file, acodec='copy', vcodec='copy', loglevel=config['log_level']).run(overwrite_output=True)
+  
+def trim(input_path, output_path, start, end):
+    input_stream = ffmpeg.input(input_path, ss=(str(datetime.timedelta(seconds=start))), to=(str(datetime.timedelta(seconds=end))))
+    ffmpeg.output(input_stream, output_path, acodec='copy', vcodec='copy', loglevel=config['log_level']).run(overwrite_output=True)
+
+def get_timestamp(time_str=None):
+    if time_str is None:
+        return None
+    int_time = get_int(time_str)
+    if int_time is not None:
+        return int_time
+    hour = 0
+    try:
+        timestamp = datetime.datetime.strptime(time_str, "%M:%S")
+    except ValueError:
+        try:
+            timestamp = datetime.datetime.strptime(time_str, "%H:%M:%S")
+            hour = timestamp.hour
+        except ValueError:
+            return None
+    return hour*3600 + timestamp.minute*60 + timestamp.second
+            
+def get_valid_resolution(res_str=None):
+    if res_str is None:
+        return None
+    if res_str in allowed_resolutions:
+        return res_str
+    return None
+
+async def abort_and_reply(msg, msg_to_delete, event):
+    await msg_to_delete.delete()
+    print(msg)
+    await event.reply(msg)
+    
 url_pattern = "(https:\/\/www\.|http:\/\/www\.|https:\/\/|http:\/\/)?[a-zA-Z]{2,}(\.[a-zA-Z]{2,})(\.[a-zA-Z]{2,})?\/[a-zA-Z0-9]{2,}|((https:\/\/www\.|http:\/\/www\.|https:\/\/|http:\/\/)?[a-zA-Z]{2,}(\.[a-zA-Z]{2,})(\.[a-zA-Z]{2,})?)|(https:\/\/www\.|http:\/\/www\.|https:\/\/|http:\/\/)?[a-zA-Z0-9]{2,}\.[a-zA-Z0-9]{2,}\.[a-zA-Z0-9]{2,}(\.[a-zA-Z0-9]{2,})?"
 youtube_url_pattern = "^((?:https?:)?//)?((?:www|m).)?((?:youtube.com|youtu.be))(/(?:[\w-]+?v=|embed/|v/|shorts/)?)([\w-]+)(\S+)?.*"
 instagram_url_pattern = "(?:(?:http|https):\/\/)?(?:www\.)?(?:instagram\.com|instagr\.am)\/([A-Za-z0-9-_\.]+).*"
@@ -72,6 +126,16 @@ async def handler_insta(event):
     if url is not None:
         await download_insta(event, url)
 
+def parse_args_insta(text):
+    splitted_text = re.split(' ', text)
+    if len(splitted_text) < 2:
+        return None, None
+    try:
+        return splitted_text[0], insta_parser.parse_known_args(splitted_text[1:])[0]
+    except Exception as e:
+        print(e)
+        return None, None
+    
 async def download_insta(event, url):
     msg = "#Bot: Downloading..."
     message = await event.reply(msg)
@@ -105,73 +169,7 @@ async def download_insta(event, url):
         msg = "#Bot: failed to download file."
         await abort_and_reply(msg, message, event)
         
-def parse_args_insta(text):
-    splitted_text = re.split(' ', text)
-    if len(splitted_text) < 2:
-        return None, None
-    try:
-        return splitted_text[0], insta_parser.parse_known_args(splitted_text[1:])[0]
-    except Exception as e:
-        print(e)
-        return None, None
 
-def get_int(string=None):
-    if string is None:
-        return None
-    try:
-        return int(string)
-    except ValueError:
-        return None
-
-def silentremove(filename):
-    try:
-        os.remove(filename)
-    except OSError as e:
-        if e.errno != errno.ENOENT:
-            raise
-
-def combine_video_audio(video_file, audio_file, output_file):
-    video_stream = ffmpeg.input(video_file)
-    audio_stream = ffmpeg.input(audio_file)
-    ffmpeg.output(audio_stream, video_stream, output_file, acodec='copy', vcodec='copy', loglevel=config['log_level']).run(overwrite_output=True)
-  
-def trim(input_path, output_path, start, end):
-    input_stream = ffmpeg.input(input_path, ss=(str(datetime.timedelta(seconds=start))), to=(str(datetime.timedelta(seconds=end))))
-    ffmpeg.output(input_stream, output_path, acodec='copy', vcodec='copy', loglevel=config['log_level']).run(overwrite_output=True)
-
-def get_timestamp(time_str=None):
-    if time_str is None:
-        return None
-    int_time = get_int(time_str)
-    if int_time is not None:
-        return int_time
-    hour = 0
-    try:
-        timestamp = datetime.datetime.strptime(time_str, "%M:%S")
-    except ValueError:
-        try:
-            timestamp = datetime.datetime.strptime(time_str, "%H:%M:%S")
-            hour = timestamp.hour
-        except ValueError:
-            return None
-    return hour*3600 + timestamp.minute*60 + timestamp.second
-            
-def get_valid_resolution(res_str=None):
-    if res_str is None:
-        return None
-    if res_str in allowed_resolutions:
-        return res_str
-    return None
-    
-def parse_args_yt(text):
-    splitted_text = re.split(' ', text)
-    if len(splitted_text) < 2:
-        return None, None
-    try:
-        return splitted_text[0], yt_parser.parse_known_args(splitted_text[1:])[0]
-    except Exception as e:
-        print(e)
-        return None, None
     
 @client.on(events.NewMessage(func=lambda e: e.chat_id in allowed_youtube_chat_ids or e.sender_id in allowed_youtube_user_ids, pattern=youtube_url_pattern))
 async def handler_yt(event):
@@ -188,10 +186,15 @@ async def handler_yt(event):
     if url is not None:
         await download_youtube(event, url, args)
 
-async def abort_and_reply(msg, msg_to_delete, event):
-    await msg_to_delete.delete()
-    print(msg)
-    await event.reply(msg)
+def parse_args_yt(text):
+    splitted_text = re.split(' ', text)
+    if len(splitted_text) < 2:
+        return None, None
+    try:
+        return splitted_text[0], yt_parser.parse_known_args(splitted_text[1:])[0]
+    except Exception as e:
+        print(e)
+        return None, None
     
 async def download_youtube(event, url, args):
     msg = "#Bot: Downloading ....."
