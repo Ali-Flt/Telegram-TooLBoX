@@ -29,7 +29,7 @@ def silentremove(filename):
 def convet_to_mp3(audio_file):
     audio_stream = ffmpeg.input(audio_file)
     file_name = os.path.splitext(audio_file)[0]
-    output_file = f"{file_name}_mp3.mp3"
+    output_file = f"{file_name}.mp3"
     ffmpeg.output(audio_stream, output_file, vn=None, loglevel=config['log_level']).run(overwrite_output=True)
     return output_file
     
@@ -322,9 +322,10 @@ async def download_youtube(event, url, args):
                 msg_extra = '#onlyaudio'
                 audio_name = audio.download(output_path=tempdir, max_retries=10)
                 print(f"{video_title} downloaded successfully")
+                file_name = os.path.splitext(audio_name)[0]
                 file_extention = os.path.splitext(audio_name)[-1]
                 if do_trim:
-                    output_name = os.path.join(tempdir, f'{event.id}_out{file_extention}')
+                    output_name = f'{file_name}_{file_extention}'
                     trim(audio_name, output_name, start=start, end=end)
                 else:
                     output_name = audio_name
@@ -338,32 +339,35 @@ async def download_youtube(event, url, args):
                     msg_extra = '#gif'
                 video_name = video.download(output_path=tempdir, max_retries=10)
                 print(f"{video_title} downloaded successfully")
+                file_name = os.path.splitext(video_name)[0]
                 file_extention = os.path.splitext(video_name)[-1]
                 if do_trim:
-                    output_name = os.path.join(tempdir, f'{event.id}_out{file_extention}')
+                    output_name = f'{file_name}_{file_extention}'
                     trim(video_name, output_name, start=start, end=end)
                 else:
                     output_name = video_name
             elif stream:
                 video_name = stream.download(output_path=tempdir, max_retries=10)
                 print(f"{video_title} downloaded successfully")
+                file_name = os.path.splitext(video_name)[0]
                 file_extention = os.path.splitext(video_name)[-1]
                 if do_trim:
-                    output_name = os.path.join(tempdir, f'{event.id}_out{file_extention}')
+                    output_name = f'{file_name}_{file_extention}'
                     trim(video_name, output_name, start=start, end=end)
                 else:
                     output_name = video_name
             else:
                 video_default_name = video.download(output_path=tempdir, max_retries=10)
+                file_name = os.path.splitext(video_default_name)[0]
                 file_extention = os.path.splitext(video_default_name)[-1]
-                video_name = os.path.join(tempdir, f"{event.id}_video{file_extention}")
+                video_name = f"{file_name}_video{file_extention}"
                 os.rename(video_default_name, video_name)
                 audio_name = audio.download(output_path=tempdir, max_retries=10)
                 print(f"{video_title} downloaded successfully")
-                combined_name = os.path.join(tempdir, f'{event.id}_combined{file_extention}')
+                combined_name = f'{file_name}_combined{file_extention}'
                 combine_video_audio(video_name, audio_name, combined_name)
                 if do_trim:
-                    output_name = os.path.join(tempdir, f'{event.id}_out{file_extention}')
+                    output_name = f'{file_name}_{file_extention}'
                     trim(combined_name, output_name, start=start, end=end)
                 else:
                     output_name = combined_name
