@@ -9,6 +9,8 @@ import datetime
 import tempfile
 import http
 from instagrapi import Client
+from urllib.error import HTTPError
+
 
 def get_int(string=None):
     if string is None:
@@ -43,6 +45,10 @@ def combine_video_audio(video_file, audio_file, output_file):
     video_stream = ffmpeg.input(video_file)
     audio_stream = ffmpeg.input(audio_file)
     ffmpeg.output(audio_stream, video_stream, output_file, acodec='copy', vcodec='copy', loglevel=config['log_level']).run(overwrite_output=True)
+    
+def remux_video_container(video_file, output_file):
+    video_stream = ffmpeg.input(video_file)
+    ffmpeg.output(video_stream, output_file, acodec='copy', vcodec='copy', loglevel=config['log_level']).run(overwrite_output=True)
   
 def trim(input_path, output_path, start, end):
     input_stream = ffmpeg.input(input_path, ss=(str(datetime.timedelta(seconds=start))), to=(str(datetime.timedelta(seconds=end))))
@@ -67,10 +73,10 @@ def get_timestamp(time_str=None):
             
 def get_valid_resolution(res_str=None):
     if res_str is None:
-        return None
+        return config['default_resolution']
     if res_str in allowed_resolutions:
         return res_str
-    return None
+    return config['default_resolution']
 
 async def abort_and_reply(msg, msg_to_delete, event):
     await msg_to_delete.delete()
@@ -80,6 +86,10 @@ async def abort_and_reply(msg, msg_to_delete, event):
 def merge_lists(first_list, second_list):
     return first_list + list(set(second_list) - set(first_list))
 
+def rotate_list(l, n):
+    return l[n:] + l[:n]
+
+max_retries = 10
 author_msg = '__Telegram TooLBoX by @a_flt__'
 url_pattern = "(https:\/\/www\.|http:\/\/www\.|https:\/\/|http:\/\/)?[a-zA-Z]{2,}(\.[a-zA-Z]{2,})(\.[a-zA-Z]{2,})?\/[a-zA-Z0-9]{2,}|((https:\/\/www\.|http:\/\/www\.|https:\/\/|http:\/\/)?[a-zA-Z]{2,}(\.[a-zA-Z]{2,})(\.[a-zA-Z]{2,})?)|(https:\/\/www\.|http:\/\/www\.|https:\/\/|http:\/\/)?[a-zA-Z0-9]{2,}\.[a-zA-Z0-9]{2,}\.[a-zA-Z0-9]{2,}(\.[a-zA-Z0-9]{2,})?"
 youtube_url_pattern = "^((?:https?:)?//)?((?:www|m).)?((?:youtube.com|youtu.be))(/(?:[\w-]+?v=|embed/|v/|shorts/)?)([\w-]+)(\S+)?.*"
@@ -268,7 +278,7 @@ async def handler_yt(event):
     if not args.enable:
         return
     if url is not None:
-        await download_youtube(event, url, args)
+        await download_youtube(event, url, args, 0)
 
 def parse_args_yt(text):
     splitted_text = re.split(' ', text)
@@ -280,8 +290,11 @@ def parse_args_yt(text):
         print(e)
         return None, None
     
-async def download_youtube(event, url, args):
-    msg = "#Bot: Downloading ....."
+async def download_youtube(event, url, args, retries=0):
+    if retries > 0:
+        msg = f"#Bot: Failed to download. Retrying ({retries}/{max_retries}) ....."
+    else:
+        msg = "#Bot: Downloading ....."    
     print(msg)
     message = await event.reply(msg)
     try:
@@ -319,20 +332,21 @@ async def download_youtube(event, url, args):
         streams = yt.streams
         stream = None
         video = None
+        video_index = 0
+        stream_index = 0
         audio = streams.get_audio_only()
-        resolutions = config['default_resolution_order']
-        if resolution is not None:
-            if len(streams.filter(res=resolution, progressive=True)):
-                stream = streams.filter(res=resolution, progressive=True).first()
-            if len(streams.filter(res=resolution, only_video=True)):
-                video = streams.filter(res=resolution, only_video=True).first()
+        resolutions = rotate_list(allowed_resolutions, allowed_resolutions.index(resolution))
+        if len(streams.filter(res=resolution, progressive=True)):
+            stream = streams.filter(res=resolution, progressive=True).first()
+        if len(streams.filter(res=resolution, only_video=True)):
+            video = streams.filter(res=resolution, only_video=True).first()
         if stream is None:
-            for res in resolutions:
+            for stream_index, res in enumerate(resolutions):
                 if len(streams.filter(res=res, progressive=True)):
                     stream = streams.filter(res=res, progressive=True).first()
                     break
         if video is None:
-            for res in resolutions:
+            for video_index, res in enumerate(resolutions):
                 if len(streams.filter(res=res, only_video=True)):
                     video = streams.filter(res=res, only_video=True).first()
                     break
@@ -346,6 +360,8 @@ async def download_youtube(event, url, args):
             return
         nosound_video = None
         msg_extra = ''
+        stream_extension = stream.mime_type.split('/')[1]
+        video_extension = video.mime_type.split('/')[1]
         with tempfile.TemporaryDirectory() as tempdir:
             if args.onlyaudio:
                 msg_extra = '#onlyaudio'
@@ -371,20 +387,28 @@ async def download_youtube(event, url, args):
                 file_name = os.path.splitext(video_name)[0]
                 file_extention = os.path.splitext(video_name)[-1]
                 if do_trim:
-                    output_name = f'{file_name}_{file_extention}'
+                    output_name = f'{file_name}_.mp4'
                     trim(video_name, output_name, start=start, end=end)
                 else:
-                    output_name = video_name
-            elif stream:
+                    if file_extention != '.mp4':
+                        output_name = f'{file_name}_.mp4'
+                        remux_video_container(video_name, output_name)
+                    else:
+                        output_name = video_name
+            elif (video is None) or (stream and stream_index <= video_index):
                 video_name = stream.download(output_path=tempdir, max_retries=10)
                 print(f"{video_title} downloaded successfully")
                 file_name = os.path.splitext(video_name)[0]
                 file_extention = os.path.splitext(video_name)[-1]
                 if do_trim:
-                    output_name = f'{file_name}_{file_extention}'
+                    output_name = f'{file_name}_.mp4'
                     trim(video_name, output_name, start=start, end=end)
                 else:
-                    output_name = video_name
+                    if file_extention != '.mp4':
+                        output_name = f'{file_name}_.mp4'
+                        remux_video_container(video_name, output_name)
+                    else:
+                        output_name = video_name
             else:
                 video_default_name = video.download(output_path=tempdir, max_retries=10)
                 file_name = os.path.splitext(video_default_name)[0]
@@ -393,10 +417,10 @@ async def download_youtube(event, url, args):
                 os.rename(video_default_name, video_name)
                 audio_name = audio.download(output_path=tempdir, max_retries=10)
                 print(f"{video_title} downloaded successfully")
-                combined_name = f'{file_name}_combined{file_extention}'
+                combined_name = f'{file_name}_combined.mp4'
                 combine_video_audio(video_name, audio_name, combined_name)
                 if do_trim:
-                    output_name = f'{file_name}_{file_extention}'
+                    output_name = f'{file_name}_.mp4'
                     trim(combined_name, output_name, start=start, end=end)
                 else:
                     output_name = combined_name
@@ -414,7 +438,15 @@ async def download_youtube(event, url, args):
     except (http.client.IncompleteRead) as e:
         print(e)
         await message.delete()
-        await download_youtube(event, url, resolution, start, end)
+        retries += 1
+        if retries < max_retries:
+            await download_youtube(event, url, resolution, start, end, retries)
+    except (HTTPError) as e:
+        print(e)
+        await message.delete()
+        retries += 1
+        if retries < max_retries:
+            await download_youtube(event, url, resolution, start, end, retries)
     except Exception as e:
         print(e)
         msg = "#Bot: failed to download video."
