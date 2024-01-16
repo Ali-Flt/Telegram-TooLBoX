@@ -8,11 +8,10 @@ allowed_insta_chat_ids: [-123456]
 allowed_gifying_usernames: ['username1']
 allowed_gifying_user_ids: [123456798]
 allowed_gifying_chat_ids: [-123456]
-
-token: "your_token"
 session: 'telegram_session'
 api_id: 12345679
 api_hash: 'your_api_hash'
+bot_token: 'your_token' # null
 phone_number: '+99123456789'
 proxy: # null
   proxy_type: "http"

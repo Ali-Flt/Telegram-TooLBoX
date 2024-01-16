@@ -18,7 +18,10 @@ if config['proxy']:
                "https": proxy_str}
     proxy = config['proxy']
     
-client = TelegramClient(config['session'], config['api_id'], config['api_hash'], proxy=proxy).start(phone=config['phone_number'])
+if config['bot_token']:
+    client = TelegramClient(config['session'], config['api_id'], config['api_hash'], proxy=proxy).start(bot_token=config['bot_token'])
+else:
+    client = TelegramClient(config['session'], config['api_id'], config['api_hash'], proxy=proxy).start(phone=config['phone_number'])
 
 if __name__ == '__main__':
     allowed_youtube_user_ids = []

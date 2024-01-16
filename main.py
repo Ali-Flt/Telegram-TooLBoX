@@ -10,7 +10,6 @@ import tempfile
 import http
 from instagrapi import Client
 
-
 def get_int(string=None):
     if string is None:
         return None
@@ -127,8 +126,12 @@ if config['proxy']:
     helpers.install_proxy(proxies)
     proxy = config['proxy']
     insta.set_proxy(proxy_str)
-    
-client = TelegramClient(config['session'], config['api_id'], config['api_hash'], proxy=proxy).start(phone=config['phone_number'])
+
+if config['bot_token']:
+    client = TelegramClient(config['session'], config['api_id'], config['api_hash'], proxy=proxy).start(bot_token=config['bot_token'])
+else:
+    client = TelegramClient(config['session'], config['api_id'], config['api_hash'], proxy=proxy).start(phone=config['phone_number'])
+
 insta.login_by_sessionid(config['instagram_session_id'])
 
 @client.on(events.NewMessage(func=lambda e: e.chat_id in allowed_gifying_chat_ids or e.sender_id in allowed_gifying_user_ids, pattern=make_gif_patter))
