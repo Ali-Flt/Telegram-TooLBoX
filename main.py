@@ -76,11 +76,16 @@ async def abort_and_reply(msg, msg_to_delete, event):
     await msg_to_delete.delete()
     print(msg)
     await event.reply(msg)
-    
+
+def merge_lists(first_list, second_list):
+    return first_list + list(set(second_list) - set(first_list))
+
+author_msg = '__Telegram TooLBoX by @a_flt__'
 url_pattern = "(https:\/\/www\.|http:\/\/www\.|https:\/\/|http:\/\/)?[a-zA-Z]{2,}(\.[a-zA-Z]{2,})(\.[a-zA-Z]{2,})?\/[a-zA-Z0-9]{2,}|((https:\/\/www\.|http:\/\/www\.|https:\/\/|http:\/\/)?[a-zA-Z]{2,}(\.[a-zA-Z]{2,})(\.[a-zA-Z]{2,})?)|(https:\/\/www\.|http:\/\/www\.|https:\/\/|http:\/\/)?[a-zA-Z0-9]{2,}\.[a-zA-Z0-9]{2,}\.[a-zA-Z0-9]{2,}(\.[a-zA-Z0-9]{2,})?"
 youtube_url_pattern = "^((?:https?:)?//)?((?:www|m).)?((?:youtube.com|youtu.be))(/(?:[\w-]+?v=|embed/|v/|shorts/)?)([\w-]+)(\S+)?.*"
 instagram_url_pattern = "(?:(?:http|https):\/\/)?(?:www\.)?(?:instagram\.com|instagr\.am)\/([A-Za-z0-9-_\.]+).*"
-make_gif_patter = "^gif.*"
+make_gif_pattern = "^gif.*"
+help_pattern = "^/(start|help)$"
 allowed_resolutions = ['2160p', '1440p', '1080p', '720p', '480p', '360p', '240p', '144p']
 
 yt_parser = argparse.ArgumentParser(add_help=False, prog='youtube_media_url', exit_on_error=False)
@@ -114,8 +119,13 @@ allowed_youtube_user_ids = config['allowed_youtube_user_ids']
 allowed_youtube_chat_ids = config['allowed_youtube_chat_ids']
 allowed_insta_user_ids = config['allowed_insta_user_ids']
 allowed_insta_chat_ids = config['allowed_insta_chat_ids']
-allowed_gifying_chat_ids = config['allowed_gifying_chat_ids']
 allowed_gifying_user_ids = config['allowed_gifying_user_ids']
+allowed_gifying_chat_ids = config['allowed_gifying_chat_ids']
+
+all_allowed_user_ids = merge_lists(allowed_youtube_user_ids, allowed_insta_user_ids)
+all_allowed_user_ids = merge_lists(all_allowed_user_ids, allowed_gifying_user_ids)
+all_allowed_chat_ids = merge_lists(allowed_youtube_chat_ids, allowed_insta_chat_ids)
+all_allowed_chat_ids = merge_lists(all_allowed_chat_ids, allowed_gifying_chat_ids)
 insta = Client()
 
 proxy = None
@@ -134,14 +144,27 @@ else:
 
 insta.login_by_sessionid(config['instagram_session_id'])
 
-@client.on(events.NewMessage(func=lambda e: e.chat_id in allowed_gifying_chat_ids or e.sender_id in allowed_gifying_user_ids, pattern=make_gif_patter))
+if config['bot_token']:
+    @client.on(events.NewMessage(func=lambda e: e.chat_id in all_allowed_chat_ids or e.sender_id in all_allowed_user_ids, pattern=help_pattern))
+    async def hanlder_help(event):
+        msg = "Please use one of the following commands: (You may not have access to all commands.)"
+        msg += f"\n`{yt_parser.format_help()}`"
+        msg += "\n------------------------------------------------------------------------------------------------"
+        msg += f"\n`{insta_parser.format_help()}`"
+        msg += "\n------------------------------------------------------------------------------------------------"
+        msg += f"\n`{gif_parser.format_help()}`"
+        msg += "\n------------------------------------------------------------------------------------------------"
+        msg += f"\n{author_msg}"
+        await event.respond(msg)
+
+@client.on(events.NewMessage(func=lambda e: e.chat_id in allowed_gifying_chat_ids or e.sender_id in allowed_gifying_user_ids, pattern=make_gif_pattern))
 async def handler_make_gif(event):
     args = parse_args_gif(event.raw_text)
     if args is None:
         return
     if args.help:
         await event.message.delete()
-        await event.respond(f"`{gif_parser.format_help()}`\nDon't forget to attach the video to your message.\n__A Gif maker by @a_flt__")
+        await event.respond(f"`{gif_parser.format_help()}`\nDon't forget to attach the video to your message.\n{author_msg}")
         return
     if not args.enable:
         return
@@ -183,7 +206,7 @@ async def handler_insta(event):
         return
     if args.help:
         await event.message.delete()
-        await event.respond(f"`{insta_parser.format_help()}`\n__A YT & IG downloader by @a_flt__")
+        await event.respond(f"`{insta_parser.format_help()}`\n{author_msg}")
         return
     if not args.enable:
         return
@@ -240,7 +263,7 @@ async def handler_yt(event):
         return
     if args.help:
         await event.message.delete()
-        await event.respond(f"`{yt_parser.format_help()}`\n__A YT & IG downloader by @a_flt__")
+        await event.respond(f"`{yt_parser.format_help()}`\n{author_msg}")
         return
     if not args.enable:
         return
