@@ -26,11 +26,14 @@ def silentremove(filename):
         if e.errno != errno.ENOENT:
             raise
 
-def convet_to_aac(audio_file):
+def convet_to_playable_audio(audio_file):
     audio_stream = ffmpeg.input(audio_file)
     file_name = os.path.splitext(audio_file)[0]
-    output_file = f"{file_name}.aac"
-    ffmpeg.output(audio_stream, output_file, acodec='copy', vn=None, loglevel=config['log_level']).run(overwrite_output=True)
+    output_file = f"{file_name}.mp3"
+    try:
+        ffmpeg.output(audio_stream, output_file, acodec='copy', vn=None, loglevel=config['log_level']).run(overwrite_output=True)
+    except Exception:
+        ffmpeg.output(audio_stream, output_file, vn=None, loglevel=config['log_level']).run(overwrite_output=True)
     return output_file
     
 def remove_audio(video_file, output_file):
@@ -329,7 +332,7 @@ async def download_youtube(event, url, args):
                     trim(audio_name, output_name, start=start, end=end)
                 else:
                     output_name = audio_name
-                output_name = convet_to_aac(output_name)
+                output_name = convet_to_playable_audio(output_name)
             elif args.noaudio or args.gif:
                 if args.noaudio:
                     nosound_video = True
