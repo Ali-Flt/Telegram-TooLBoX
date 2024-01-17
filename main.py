@@ -102,6 +102,7 @@ help_pattern = "^/(start|help)$"
 allowed_resolutions = ['2160p', '1440p', '1080p', '720p', '480p', '360p', '240p', '144p']
 
 yt_parser = argparse.ArgumentParser(add_help=False, prog='youtube_media_url', exit_on_error=False)
+yt_parser.add_argument('-0', dest='disable', action='store_const', const=True, default=False, help="ignore command")
 yt_parser.add_argument('-r', dest='resolution', type=str, help="video resolution (e.g. 1080p)")
 yt_parser.add_argument('-s', dest='start', type=str, help="start time in seconds or MM:SS")
 yt_parser.add_argument('-e', dest='end', type=str, help="end time in seconds, MM:SS")
@@ -112,9 +113,11 @@ yt_parser.add_argument('-gif', dest='gif', action='store_const', const=True, def
 yt_parser.add_argument('-h', dest='help', action='store_const', const=True, default=False, help="print this help command")
 
 insta_parser = argparse.ArgumentParser(add_help=False, prog='instagram_media_url', exit_on_error=False)
+insta_parser.add_argument('-0', dest='disable', action='store_const', const=True, default=False, help="ignore command")
 insta_parser.add_argument('-h', dest='help', action='store_const', const=True, default=False, help="print this help command")
 
 gif_parser = argparse.ArgumentParser(add_help=False, prog='gif', exit_on_error=False)
+gif_parser.add_argument('-0', dest='disable', action='store_const', const=True, default=False, help="ignore command")
 gif_parser.add_argument('-h', dest='help', action='store_const', const=True, default=False, help="print this help command")
 
 parser = argparse.ArgumentParser()
@@ -176,6 +179,8 @@ async def handler_make_gif(event):
         await event.message.delete()
         await event.respond(f"`{gif_parser.format_help()}`\nDon't forget to attach the video to your message.\n{author_msg}")
         return
+    if args.disable:
+        return
     if event.message.video:
         await make_gif(event)
 
@@ -213,6 +218,8 @@ async def handler_insta(event):
     if args.help:
         await event.message.delete()
         await event.respond(f"`{insta_parser.format_help()}`\n{author_msg}")
+        return
+    if args.disable:
         return
     if url is not None:
         await download_insta(event, url)
@@ -266,6 +273,8 @@ async def handler_yt(event):
     if args.help:
         await event.message.delete()
         await event.respond(f"`{yt_parser.format_help()}`\n{author_msg}")
+        return
+    if args.disable:
         return
     if url is not None:
         await download_youtube(event, url, args, 0)
