@@ -360,10 +360,10 @@ async def download_youtube(event, url, args, retries=0):
             return
         nosound_video = None
         msg_extra = ''
-        stream_extension = stream.mime_type.split('/')[1]
-        video_extension = video.mime_type.split('/')[1]
+        mode_id = -1
         with tempfile.TemporaryDirectory() as tempdir:
             if args.onlyaudio:
+                mode_id = 0
                 msg_extra = '#onlyaudio'
                 audio_name = audio.download(output_path=tempdir, max_retries=10)
                 print(f"{video_title} downloaded successfully")
@@ -377,9 +377,11 @@ async def download_youtube(event, url, args, retries=0):
                 output_name = convet_to_playable_audio(output_name)
             elif args.noaudio or args.gif:
                 if args.noaudio:
+                    mode_id = 1
                     nosound_video = True
                     msg_extra = '#noaudio'
                 else:
+                    mode_id = 2
                     nosound_video = False
                     msg_extra = '#gif'
                 video_name = video.download(output_path=tempdir, max_retries=10)
@@ -396,6 +398,7 @@ async def download_youtube(event, url, args, retries=0):
                     else:
                         output_name = video_name
             elif (video is None) or (stream and stream_index <= video_index):
+                mode_id = 3
                 video_name = stream.download(output_path=tempdir, max_retries=10)
                 print(f"{video_title} downloaded successfully")
                 file_name = os.path.splitext(video_name)[0]
@@ -410,6 +413,7 @@ async def download_youtube(event, url, args, retries=0):
                     else:
                         output_name = video_name
             else:
+                mode_id = 4
                 video_default_name = video.download(output_path=tempdir, max_retries=10)
                 file_name = os.path.splitext(video_default_name)[0]
                 file_extention = os.path.splitext(video_default_name)[-1]
@@ -427,11 +431,12 @@ async def download_youtube(event, url, args, retries=0):
             msg = f"#Bot #Youtube " + msg_extra
             msg += f"\n{video_title}\nLink: {url}"
             msg += f"\nStart: {datetime.timedelta(seconds=start)}, End: {datetime.timedelta(seconds=end)}"
-            if not args.onlyaudio:
-                if not (args.noaudio or args.gif) and stream:
-                    msg += f"\nResolution: {stream.resolution}"
-                else:
-                    msg += f"\nResolution: {video.resolution}"
+            if mode_id == 3:
+                msg += f"\nResolution: {stream.resolution}"
+            elif mode_id != 0:
+                msg += f"\nResolution: {video.resolution}"
+            else:
+                msg += f"\nBitrate: {audio.abr}"
             await event.respond(msg, link_preview=False, file=output_name, nosound_video=nosound_video)
             await message.delete()
             await event.message.delete()
