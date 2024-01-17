@@ -437,16 +437,22 @@ async def download_youtube(event, url, args, retries=0):
             await event.message.delete()
     except (http.client.IncompleteRead) as e:
         print(e)
-        await message.delete()
         retries += 1
         if retries < max_retries:
+            await message.delete()
             await download_youtube(event, url, resolution, start, end, retries)
+        else:
+            msg = "#Bot: failed to download video."
+            await abort_and_reply(msg, message, event)
     except (HTTPError) as e:
         print(e)
-        await message.delete()
         retries += 1
         if retries < max_retries:
+            await message.delete()
             await download_youtube(event, url, resolution, start, end, retries)
+        else:
+            msg = "#Bot: failed to download video."
+            await abort_and_reply(msg, message, event)
     except Exception as e:
         print(e)
         msg = "#Bot: failed to download video."
