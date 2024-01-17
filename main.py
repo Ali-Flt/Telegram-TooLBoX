@@ -181,8 +181,6 @@ async def handler_make_gif(event):
 
 def parse_args_gif(text):
     splitted_text = re.split(' ', text)
-    if len(splitted_text) < 2:
-        return None
     try:
         return gif_parser.parse_known_args(splitted_text[1:])[0]
     except Exception as e:
@@ -221,8 +219,6 @@ async def handler_insta(event):
 
 def parse_args_insta(text):
     splitted_text = re.split(' ', text)
-    if len(splitted_text) < 2:
-        return None, None
     try:
         return splitted_text[0], insta_parser.parse_known_args(splitted_text[1:])[0]
     except Exception as e:
@@ -276,8 +272,6 @@ async def handler_yt(event):
 
 def parse_args_yt(text):
     splitted_text = re.split(' ', text)
-    if len(splitted_text) < 2:
-        return None, None
     try:
         return splitted_text[0], yt_parser.parse_known_args(splitted_text[1:])[0]
     except Exception as e:
