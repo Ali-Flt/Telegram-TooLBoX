@@ -11,7 +11,6 @@ import http
 from instagrapi import Client
 from urllib.error import HTTPError
 
-
 def get_int(string=None):
     if string is None:
         return None
@@ -27,14 +26,18 @@ def silentremove(filename):
         if e.errno != errno.ENOENT:
             raise
 
-def convet_to_playable_audio(audio_file):
+def convet_to_playable_audio(audio_file, codec):
     audio_stream = ffmpeg.input(audio_file)
     file_name = os.path.splitext(audio_file)[0]
-    output_file = f"{file_name}.mp3"
+    if codec == 'mp4a.40.2':
+        output_file = f"{file_name}.m4a"
+    else:
+        output_file = f"{file_name}.opus"
     try:
         ffmpeg.output(audio_stream, output_file, acodec='copy', vn=None, loglevel=config['log_level']).run(overwrite_output=True)
     except Exception:
-        ffmpeg.output(audio_stream, output_file, vn=None, loglevel=config['log_level']).run(overwrite_output=True)
+        print("Failed to convert audio without re-encoding. Trying to encode...")
+        ffmpeg.output(audio_stream, output_file, ab='320k', vn=None, loglevel=config['log_level']).run(overwrite_output=True)
     return output_file
     
 def remove_audio(video_file, output_file):
@@ -99,7 +102,6 @@ help_pattern = "^/(start|help)$"
 allowed_resolutions = ['2160p', '1440p', '1080p', '720p', '480p', '360p', '240p', '144p']
 
 yt_parser = argparse.ArgumentParser(add_help=False, prog='youtube_media_url', exit_on_error=False)
-yt_parser.add_argument('-1', dest='enable', action='store_const', const=True, default=False, help="add this to enable the bot")
 yt_parser.add_argument('-r', dest='resolution', type=str, help="video resolution (e.g. 1080p)")
 yt_parser.add_argument('-s', dest='start', type=str, help="start time in seconds or MM:SS")
 yt_parser.add_argument('-e', dest='end', type=str, help="end time in seconds, MM:SS")
@@ -110,11 +112,9 @@ yt_parser.add_argument('-gif', dest='gif', action='store_const', const=True, def
 yt_parser.add_argument('-h', dest='help', action='store_const', const=True, default=False, help="print this help command")
 
 insta_parser = argparse.ArgumentParser(add_help=False, prog='instagram_media_url', exit_on_error=False)
-insta_parser.add_argument('-1', dest='enable', action='store_const', const=True, default=False, help="add this to enable the bot")
 insta_parser.add_argument('-h', dest='help', action='store_const', const=True, default=False, help="print this help command")
 
 gif_parser = argparse.ArgumentParser(add_help=False, prog='gif', exit_on_error=False)
-gif_parser.add_argument('-1', dest='enable', action='store_const', const=True, default=False, help="add this to enable the bot")
 gif_parser.add_argument('-h', dest='help', action='store_const', const=True, default=False, help="print this help command")
 
 parser = argparse.ArgumentParser()
@@ -176,8 +176,6 @@ async def handler_make_gif(event):
         await event.message.delete()
         await event.respond(f"`{gif_parser.format_help()}`\nDon't forget to attach the video to your message.\n{author_msg}")
         return
-    if not args.enable:
-        return
     if event.message.video:
         await make_gif(event)
 
@@ -217,8 +215,6 @@ async def handler_insta(event):
     if args.help:
         await event.message.delete()
         await event.respond(f"`{insta_parser.format_help()}`\n{author_msg}")
-        return
-    if not args.enable:
         return
     if url is not None:
         await download_insta(event, url)
@@ -274,8 +270,6 @@ async def handler_yt(event):
     if args.help:
         await event.message.delete()
         await event.respond(f"`{yt_parser.format_help()}`\n{author_msg}")
-        return
-    if not args.enable:
         return
     if url is not None:
         await download_youtube(event, url, args, 0)
@@ -334,7 +328,7 @@ async def download_youtube(event, url, args, retries=0):
         video = None
         video_index = 0
         stream_index = 0
-        audio = streams.get_audio_only()
+        audio = streams.get_audio_only(subtype="webm")
         resolutions = rotate_list(allowed_resolutions, allowed_resolutions.index(resolution))
         if len(streams.filter(res=resolution, progressive=True)):
             stream = streams.filter(res=resolution, progressive=True).first()
@@ -374,7 +368,8 @@ async def download_youtube(event, url, args, retries=0):
                     trim(audio_name, output_name, start=start, end=end)
                 else:
                     output_name = audio_name
-                output_name = convet_to_playable_audio(output_name)
+                codec = audio.codecs[0]
+                output_name = convet_to_playable_audio(output_name, codec)
             elif args.noaudio or args.gif:
                 if args.noaudio:
                     mode_id = 1
