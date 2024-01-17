@@ -328,7 +328,7 @@ async def download_youtube(event, url, args, retries=0):
         video = None
         video_index = 0
         stream_index = 0
-        audio = streams.get_audio_only(subtype="webm")
+        audio = streams.get_audio_only()
         resolutions = rotate_list(allowed_resolutions, allowed_resolutions.index(resolution))
         if len(streams.filter(res=resolution, progressive=True)):
             stream = streams.filter(res=resolution, progressive=True).first()
