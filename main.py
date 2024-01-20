@@ -71,7 +71,10 @@ def merge_lists(first_list, second_list):
 
 def get_video_info(url):
     ydl_opts = {'proxy': proxy_str,
-                'quiet': True}
+                'quiet': True,
+                'cookiefile': 'cookies.firefox-private.txt',
+                'source_address': '0.0.0.0'
+                }
     with yt_dlp.YoutubeDL(ydl_opts) as ydl:
         info = ydl.extract_info(url, download=False)
         is_live = info['is_live']
@@ -321,6 +324,10 @@ async def download_youtube(event, url, args, retries=0):
             msg = "#Bot: timestamps out of range."
             await abort_and_reply(msg, message, event)
             return
+        if abs(end-start) > config['max_video_length']:
+            msg = f"#Bot: can't download video sections longer than {config['max_video_length']} seconds. Please crop the video shorter."
+            await abort_and_reply(msg, message, event)
+            return
         resolution = get_valid_resolution(args.resolution)
         print(f"Downloading {video_title} ...")
         nosound_video = None
@@ -332,6 +339,8 @@ async def download_youtube(event, url, args, retries=0):
                         'overwrites': True,
                         'live_from_start': is_live,
                         'paths': {'temp': tempdir, 'home': tempdir},
+                        'cookiefile': 'cookies.firefox-private.txt',
+                        'source_address': '0.0.0.0'
                         }
             if args.onlyaudio:
                 mode_id = 0
@@ -372,6 +381,9 @@ async def download_youtube(event, url, args, retries=0):
             print(f"{video_title} downloaded successfully")
             msg = f"#Bot #Youtube " + msg_extra
             msg += f"\n{video_title}\nLink: {url}"
+            if is_live:
+                start = length - start
+                end = length - end
             msg += f"\nStart: {datetime.timedelta(seconds=start)}, End: {datetime.timedelta(seconds=end)}"
             if mode_id == 0:
                 msg += f"\nBitrate: {abr}Kbps"
