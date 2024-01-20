@@ -156,7 +156,8 @@ if config['proxy']:
 
 client = TelegramClient(config['session'], config['api_id'], config['api_hash'], proxy=proxy).start(bot_token=config['bot_token'])
 
-insta.login_by_sessionid(config['instagram_session_id'])
+if config['instagram_session_id']:
+    insta.login_by_sessionid(config['instagram_session_id'])
 
 @client.on(events.NewMessage(func=lambda e: e.chat_id in all_allowed_chat_ids or e.sender_id in all_allowed_user_ids, pattern=help_pattern))
 async def hanlder_help(event):
