@@ -72,7 +72,7 @@ def merge_lists(first_list, second_list):
 def get_video_info(url):
     ydl_opts = {'proxy': proxy_str,
                 'quiet': True,
-                'cookiefile': 'cookies.firefox-private.txt',
+                'cookiefile': config['cookiefile'],
                 'source_address': '0.0.0.0'
                 }
     with yt_dlp.YoutubeDL(ydl_opts) as ydl:
@@ -339,7 +339,7 @@ async def download_youtube(event, url, args, retries=0):
                         'overwrites': True,
                         'live_from_start': is_live,
                         'paths': {'temp': tempdir, 'home': tempdir},
-                        'cookiefile': 'cookies.firefox-private.txt',
+                        'cookiefile': config['cookiefile'],
                         'source_address': '0.0.0.0'
                         }
             if args.onlyaudio:
