@@ -1,9 +1,11 @@
-from pytube import YouTube, helpers
-import ffmpeg
+import yt_dlp
+from yt_dlp.utils import download_range_func
+import time
 import os, errno
 import re
 import yaml
 import argparse
+import ffmpeg
 from telethon import TelegramClient, events
 import datetime
 import tempfile
@@ -25,44 +27,22 @@ def silentremove(filename):
     except OSError as e:
         if e.errno != errno.ENOENT:
             raise
-
-def convet_to_playable_audio(audio_file, codec):
-    audio_stream = ffmpeg.input(audio_file)
-    file_name = os.path.splitext(audio_file)[0]
-    if codec == 'mp4a.40.2':
-        output_file = f"{file_name}.m4a"
-    else:
-        output_file = f"{file_name}.opus"
-    try:
-        ffmpeg.output(audio_stream, output_file, acodec='copy', vn=None, loglevel=config['log_level']).run(overwrite_output=True)
-    except Exception:
-        print("Failed to convert audio without re-encoding. Trying to encode...")
-        ffmpeg.output(audio_stream, output_file, ab='320k', vn=None, loglevel=config['log_level']).run(overwrite_output=True)
+    
+def remove_audio(video_file):
+    file_name = os.path.splitext(video_file)[0]
+    ext = os.path.splitext(video_file)[-1]
+    output_file = f"{file_name}_noaudio{ext}"
+    video_stream = ffmpeg.input(video_file)
+    ffmpeg.output(video_stream, output_file, vcodec='copy', an=None, loglevel='quiet').run(overwrite_output=True)
     return output_file
-    
-def remove_audio(video_file, output_file):
-    video_stream = ffmpeg.input(video_file)
-    ffmpeg.output(video_stream, output_file, vcodec='copy', an=None, loglevel=config['log_level']).run(overwrite_output=True)
-    
-def combine_video_audio(video_file, audio_file, output_file):
-    video_stream = ffmpeg.input(video_file)
-    audio_stream = ffmpeg.input(audio_file)
-    ffmpeg.output(audio_stream, video_stream, output_file, acodec='copy', vcodec='copy', loglevel=config['log_level']).run(overwrite_output=True)
-    
-def remux_video_container(video_file, output_file):
-    video_stream = ffmpeg.input(video_file)
-    ffmpeg.output(video_stream, output_file, acodec='copy', vcodec='copy', loglevel=config['log_level']).run(overwrite_output=True)
-  
-def trim(input_path, output_path, start, end):
-    input_stream = ffmpeg.input(input_path, ss=(str(datetime.timedelta(seconds=start))), to=(str(datetime.timedelta(seconds=end))))
-    ffmpeg.output(input_stream, output_path, acodec='copy', vcodec='copy', loglevel=config['log_level']).run(overwrite_output=True)
 
 def get_timestamp(time_str=None):
     if time_str is None:
         return None
     int_time = get_int(time_str)
     if int_time is not None:
-        return int_time
+        if int_time >= 0:
+            return int_time
     hour = 0
     try:
         timestamp = datetime.datetime.strptime(time_str, "%M:%S")
@@ -89,9 +69,29 @@ async def abort_and_reply(msg, msg_to_delete, event):
 def merge_lists(first_list, second_list):
     return first_list + list(set(second_list) - set(first_list))
 
-def rotate_list(l, n):
-    return l[n:] + l[:n]
+def get_video_info(url):
+    ydl_opts = {'proxy': proxy_str,
+                'quiet': True}
+    with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+        info = ydl.extract_info(url, download=False)
+        is_live = info['is_live']
+        if is_live:
+            base_time = time.time()
+            duration = base_time - info['release_timestamp']
+        else:
+            base_time = 0
+            duration = info['duration']
+        
+        return info['title'], is_live, duration, base_time
 
+def download_yt_dlp(url, ydl_opts, start, end, sign, length, base_time):
+    if abs(end-start) < length:
+        ydl_opts['download_ranges'] = download_range_func(None, [(base_time+(sign*start), base_time+(sign*end))])
+    with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+        info = ydl.extract_info(url, download=True)
+        return info['requested_downloads'][0]['filepath'], info['resolution'], info['abr']
+    
+    
 max_retries = 10
 author_msg = '__Telegram TooLBoX by @a_flt__'
 url_pattern = "(https:\/\/www\.|http:\/\/www\.|https:\/\/|http:\/\/)?[a-zA-Z]{2,}(\.[a-zA-Z]{2,})(\.[a-zA-Z]{2,})?\/[a-zA-Z0-9]{2,}|((https:\/\/www\.|http:\/\/www\.|https:\/\/|http:\/\/)?[a-zA-Z]{2,}(\.[a-zA-Z]{2,})(\.[a-zA-Z]{2,})?)|(https:\/\/www\.|http:\/\/www\.|https:\/\/|http:\/\/)?[a-zA-Z0-9]{2,}\.[a-zA-Z0-9]{2,}\.[a-zA-Z0-9]{2,}(\.[a-zA-Z0-9]{2,})?"
@@ -99,11 +99,11 @@ youtube_url_pattern = "^((?:https?:)?//)?((?:www|m).)?((?:youtube.com|youtu.be))
 instagram_url_pattern = "(?:(?:http|https):\/\/)?(?:www\.)?(?:instagram\.com|instagr\.am)\/([A-Za-z0-9-_\.]+).*"
 make_gif_pattern = "^gif.*"
 help_pattern = "^/(start|help)$"
-allowed_resolutions = ['2160p', '1440p', '1080p', '720p', '480p', '360p', '240p', '144p']
+allowed_resolutions = ['2160', '1440', '1080', '720', '480', '360', '240', '144']
 
 yt_parser = argparse.ArgumentParser(add_help=False, prog='youtube_media_url', exit_on_error=False)
 yt_parser.add_argument('-0', dest='disable', action='store_const', const=True, default=False, help="ignore command")
-yt_parser.add_argument('-r', dest='resolution', type=str, help="video resolution (e.g. 1080p)")
+yt_parser.add_argument('-r', dest='resolution', type=str, help="video resolution (e.g. 1080)")
 yt_parser.add_argument('-s', dest='start', type=str, help="start time in seconds or MM:SS")
 yt_parser.add_argument('-e', dest='end', type=str, help="end time in seconds, MM:SS")
 yt_parser.add_argument('-d', dest='duration', type=str, help="duration time in seconds, MM:SS")
@@ -142,33 +142,30 @@ all_allowed_chat_ids = merge_lists(all_allowed_chat_ids, allowed_gifying_chat_id
 insta = Client()
 
 proxy = None
+proxies = None
+proxy_str = None
 if config['proxy']:
     proxy_str = f"{config['proxy']['proxy_type']}://{config['proxy']['addr']}:{config['proxy']['port']}"
     proxies = {"http": proxy_str,
                "https": proxy_str}
-    helpers.install_proxy(proxies)
     proxy = config['proxy']
     insta.set_proxy(proxy_str)
 
-if config['bot_token']:
-    client = TelegramClient(config['session'], config['api_id'], config['api_hash'], proxy=proxy).start(bot_token=config['bot_token'])
-else:
-    client = TelegramClient(config['session'], config['api_id'], config['api_hash'], proxy=proxy).start(phone=config['phone_number'])
+client = TelegramClient(config['session'], config['api_id'], config['api_hash'], proxy=proxy).start(bot_token=config['bot_token'])
 
 insta.login_by_sessionid(config['instagram_session_id'])
 
-if config['bot_token']:
-    @client.on(events.NewMessage(func=lambda e: e.chat_id in all_allowed_chat_ids or e.sender_id in all_allowed_user_ids, pattern=help_pattern))
-    async def hanlder_help(event):
-        msg = "Please use one of the following commands: (You may not have access to all commands.)"
-        msg += f"\n`{yt_parser.format_help()}`"
-        msg += "\n------------------------------------------------------------------------------------------------"
-        msg += f"\n`{insta_parser.format_help()}`"
-        msg += "\n------------------------------------------------------------------------------------------------"
-        msg += f"\n`{gif_parser.format_help()}`"
-        msg += "\n------------------------------------------------------------------------------------------------"
-        msg += f"\n{author_msg}"
-        await event.respond(msg)
+@client.on(events.NewMessage(func=lambda e: e.chat_id in all_allowed_chat_ids or e.sender_id in all_allowed_user_ids, pattern=help_pattern))
+async def hanlder_help(event):
+    msg = "Please use one of the following commands: (You may not have access to all commands.)"
+    msg += f"\n`{yt_parser.format_help()}`"
+    msg += "\n------------------------------------------------------------------------------------------------"
+    msg += f"\n`{insta_parser.format_help()}`"
+    msg += "\n------------------------------------------------------------------------------------------------"
+    msg += f"\n`{gif_parser.format_help()}`"
+    msg += "\n------------------------------------------------------------------------------------------------"
+    msg += f"\n{author_msg}"
+    await event.respond(msg)
 
 @client.on(events.NewMessage(func=lambda e: e.chat_id in allowed_gifying_chat_ids or e.sender_id in allowed_gifying_user_ids, pattern=make_gif_pattern))
 async def handler_make_gif(event):
@@ -200,8 +197,7 @@ async def make_gif(event):
         with tempfile.TemporaryDirectory() as tempdir:
             file_name = os.path.join(tempdir, f"{event.id}.mp4")
             await event.message.download_media(file=file_name)
-            output_name = os.path.join(tempdir, f"{event.id}_noaudio.mp4")
-            remove_audio(file_name, output_name)
+            output_name = remove_audio(file_name)
             await event.respond(f"#Bot #gif_maker", file=output_name, nosound_video=False)
             await event.message.delete()
     except Exception as e:
@@ -286,7 +282,7 @@ def parse_args_yt(text):
     except Exception as e:
         print(e)
         return None, None
-    
+        
 async def download_youtube(event, url, args, retries=0):
     if retries > 0:
         msg = f"#Bot: Failed to download. Retrying ({retries}/{max_retries}) ....."
@@ -295,84 +291,58 @@ async def download_youtube(event, url, args, retries=0):
     print(msg)
     message = await event.reply(msg)
     try:
-        yt = YouTube(url)
-        if yt.length > config['max_video_length']:
-            msg = f"#Bot: video is longer than {config['max_video_length']} seconds."
-            await abort_and_reply(msg, message, event)
-            return
+        video_title, is_live, length, base_time = get_video_info(url)
+        if is_live:
+            sign = -1
+        else:
+            sign = 1
         start = get_timestamp(args.start)
         duration = get_timestamp(args.duration) 
         end = get_timestamp(args.end)
         if start is not None and duration is not None:
-            end = start + duration
+            end = start + (sign*duration)
         elif end is not None and duration is not None:
-            start = end - duration
+            start = end - (sign*duration)
         if start is not None:
-            start = min(start, yt.length)
+            start = max(min(start, length), 0)
         else:
-            start = 0
+            if is_live:
+                start = length
+            else:
+                start = 0
         if end is not None:
-            end = min(end, yt.length)
+            end = max(min(end, length), 0)
         else:
-            end = yt.length
-        if start >= end:
+            if is_live:
+                end = 0
+            else:
+                end = length
+        if (start >= end and not is_live) or (start <= end and is_live):
             msg = "#Bot: timestamps out of range."
             await abort_and_reply(msg, message, event)
             return
-        if start == 0 and end == yt.length:
-            do_trim = False
-        else:
-            do_trim = True
         resolution = get_valid_resolution(args.resolution)
-        video_title = yt.title
         print(f"Downloading {video_title} ...")
-        streams = yt.streams
-        stream = None
-        video = None
-        video_index = 0
-        stream_index = 0
-        audio = streams.get_audio_only()
-        resolutions = rotate_list(allowed_resolutions, allowed_resolutions.index(resolution))
-        if len(streams.filter(res=resolution, progressive=True)):
-            stream = streams.filter(res=resolution, progressive=True).first()
-        if len(streams.filter(res=resolution, only_video=True)):
-            video = streams.filter(res=resolution, only_video=True).first()
-        if stream is None:
-            for stream_index, res in enumerate(resolutions):
-                if len(streams.filter(res=res, progressive=True)):
-                    stream = streams.filter(res=res, progressive=True).first()
-                    break
-        if video is None:
-            for video_index, res in enumerate(resolutions):
-                if len(streams.filter(res=res, only_video=True)):
-                    video = streams.filter(res=res, only_video=True).first()
-                    break
-        if stream is None:
-            stream = streams.filter(progressive=True).get_highest_resolution()
-        if video is None:
-            video = streams.filter(only_video=True).get_highest_resolution()
-        if stream is None and video is None and audio is None:
-            msg ="#Bot: no video stream found."
-            await abort_and_reply(msg, message, event)
-            return
         nosound_video = None
         msg_extra = ''
         mode_id = -1
         with tempfile.TemporaryDirectory() as tempdir:
+            ydl_opts = {'proxy': proxy_str,
+                        'quiet': True,
+                        'overwrites': True,
+                        'live_from_start': is_live,
+                        'paths': {'temp': tempdir, 'home': tempdir},
+                        }
             if args.onlyaudio:
                 mode_id = 0
                 msg_extra = '#onlyaudio'
-                audio_name = audio.download(output_path=tempdir, max_retries=10)
-                print(f"{video_title} downloaded successfully")
-                file_name = os.path.splitext(audio_name)[0]
-                file_extention = os.path.splitext(audio_name)[-1]
-                if do_trim:
-                    output_name = f'{file_name}_{file_extention}'
-                    trim(audio_name, output_name, start=start, end=end)
-                else:
-                    output_name = audio_name
-                codec = audio.codecs[0]
-                output_name = convet_to_playable_audio(output_name, codec)
+                opts = {
+                        'format': 'm4a/ba/b/bv*',
+                        'postprocessors': [{'key': 'FFmpegExtractAudio', 'preferredcodec': 'm4a'}],
+                        'final_ext': 'm4a',
+                        }
+                ydl_opts.update(opts)
+                output_file, res, abr = download_yt_dlp(url, ydl_opts, start, end, sign, length, base_time)
             elif args.noaudio or args.gif:
                 if args.noaudio:
                     mode_id = 1
@@ -382,60 +352,32 @@ async def download_youtube(event, url, args, retries=0):
                     mode_id = 2
                     nosound_video = False
                     msg_extra = '#gif'
-                video_name = video.download(output_path=tempdir, max_retries=10)
-                print(f"{video_title} downloaded successfully")
-                file_name = os.path.splitext(video_name)[0]
-                file_extention = os.path.splitext(video_name)[-1]
-                if do_trim:
-                    output_name = f'{file_name}_.mp4'
-                    trim(video_name, output_name, start=start, end=end)
-                else:
-                    if file_extention != '.mp4':
-                        output_name = f'{file_name}_.mp4'
-                        remux_video_container(video_name, output_name)
-                    else:
-                        output_name = video_name
-            elif (video is None) or (stream and stream_index <= video_index):
-                mode_id = 3
-                video_name = stream.download(output_path=tempdir, max_retries=10)
-                print(f"{video_title} downloaded successfully")
-                file_name = os.path.splitext(video_name)[0]
-                file_extention = os.path.splitext(video_name)[-1]
-                if do_trim:
-                    output_name = f'{file_name}_.mp4'
-                    trim(video_name, output_name, start=start, end=end)
-                else:
-                    if file_extention != '.mp4':
-                        output_name = f'{file_name}_.mp4'
-                        remux_video_container(video_name, output_name)
-                    else:
-                        output_name = video_name
+                opts = {
+                        'format': f'bv[height<={resolution}]/bv*[height<={resolution}]/b[height<={resolution}]/wv/wv*/w',
+                        'final_ext': 'mp4', 
+                        'postprocessors': [{'key': 'FFmpegVideoRemuxer', 'preferedformat': 'mp4'}],
+                        }
+                ydl_opts.update(opts)
+                video_file, res, abr = download_yt_dlp(url, ydl_opts, start, end, sign, length, base_time)
+                output_file = remove_audio(video_file)
             else:
-                mode_id = 4
-                video_default_name = video.download(output_path=tempdir, max_retries=10)
-                file_name = os.path.splitext(video_default_name)[0]
-                file_extention = os.path.splitext(video_default_name)[-1]
-                video_name = f"{file_name}_video{file_extention}"
-                os.rename(video_default_name, video_name)
-                audio_name = audio.download(output_path=tempdir, max_retries=10)
-                print(f"{video_title} downloaded successfully")
-                combined_name = f'{file_name}_combined.mp4'
-                combine_video_audio(video_name, audio_name, combined_name)
-                if do_trim:
-                    output_name = f'{file_name}_.mp4'
-                    trim(combined_name, output_name, start=start, end=end)
-                else:
-                    output_name = combined_name
+                mode_id = 3
+                opts = {
+                        'format': f'bv*[height<={resolution}]+ba/b[height<={resolution}] / wv*+ba/w',
+                        'final_ext': 'mp4', 
+                        'postprocessors': [{'key': 'FFmpegVideoRemuxer', 'preferedformat': 'mp4'}],
+                        }
+                ydl_opts.update(opts)
+                output_file, res, abr = download_yt_dlp(url, ydl_opts, start, end, sign, length, base_time)
+            print(f"{video_title} downloaded successfully")
             msg = f"#Bot #Youtube " + msg_extra
             msg += f"\n{video_title}\nLink: {url}"
             msg += f"\nStart: {datetime.timedelta(seconds=start)}, End: {datetime.timedelta(seconds=end)}"
-            if mode_id == 3:
-                msg += f"\nResolution: {stream.resolution}"
-            elif mode_id != 0:
-                msg += f"\nResolution: {video.resolution}"
+            if mode_id == 0:
+                msg += f"\nBitrate: {abr}Kbps"
             else:
-                msg += f"\nBitrate: {audio.abr}"
-            await event.respond(msg, link_preview=False, file=output_name, nosound_video=nosound_video)
+                msg += f"\nResolution: {res}"
+            await event.respond(msg, link_preview=False, file=output_file, nosound_video=nosound_video)
             await message.delete()
             await event.message.delete()
     except (http.client.IncompleteRead) as e:
