@@ -113,14 +113,17 @@ yt_parser.add_argument('-d', dest='duration', type=str, help="duration time in s
 yt_parser.add_argument('-ao', dest='onlyaudio', action='store_const', const=True, default=False, help="get only audio stream")
 yt_parser.add_argument('-vo', dest='noaudio', action='store_const', const=True, default=False, help="get only video stream")
 yt_parser.add_argument('-gif', dest='gif', action='store_const', const=True, default=False, help="convert video to gif")
+yt_parser.add_argument('-rm', dest='rm', action='store_const', const=True, default=False, help="delete original command message after downloading")
 yt_parser.add_argument('-h', dest='help', action='store_const', const=True, default=False, help="print this help command")
 
 insta_parser = argparse.ArgumentParser(add_help=False, prog='instagram_media_url', exit_on_error=False)
 insta_parser.add_argument('-0', dest='disable', action='store_const', const=True, default=False, help="ignore command")
+insta_parser.add_argument('-rm', dest='rm', action='store_const', const=True, default=False, help="delete original command message after downloading")
 insta_parser.add_argument('-h', dest='help', action='store_const', const=True, default=False, help="print this help command")
 
 gif_parser = argparse.ArgumentParser(add_help=False, prog='gif', exit_on_error=False)
 gif_parser.add_argument('-0', dest='disable', action='store_const', const=True, default=False, help="ignore command")
+gif_parser.add_argument('-rm', dest='rm', action='store_const', const=True, default=False, help="delete original command message after downloading")
 gif_parser.add_argument('-h', dest='help', action='store_const', const=True, default=False, help="print this help command")
 
 parser = argparse.ArgumentParser()
@@ -183,7 +186,7 @@ async def handler_make_gif(event):
     if args.disable:
         return
     if event.message.video:
-        await make_gif(event)
+        await make_gif(event, args)
 
 def parse_args_gif(text):
     splitted_text = re.split(' ', text)
@@ -193,7 +196,7 @@ def parse_args_gif(text):
         print(e)
         return None
     
-async def make_gif(event):
+async def make_gif(event, args):
     message = "#Bot: converting to gif..."
     await event.reply(message)
     print(message)
@@ -203,7 +206,8 @@ async def make_gif(event):
             await event.message.download_media(file=file_name)
             output_name = remove_audio(file_name)
             await event.respond(f"#Bot #gif_maker", file=output_name, nosound_video=False)
-            await event.message.delete()
+            if args.rm:
+                await event.message.delete()
     except Exception as e:
         print(e)
         msg = "#Bot: failed to convert to gif."
@@ -222,7 +226,7 @@ async def handler_insta(event):
     if args.disable:
         return
     if url is not None:
-        await download_insta(event, url)
+        await download_insta(event, url, args)
 
 def parse_args_insta(text):
     splitted_text = re.split(' ', text)
@@ -232,7 +236,7 @@ def parse_args_insta(text):
         print(e)
         return None, None
     
-async def download_insta(event, url):
+async def download_insta(event, url, args):
     msg = "#Bot: Downloading Instagram media..."
     message = await event.reply(msg)
     print(msg)
@@ -259,7 +263,8 @@ async def download_insta(event, url):
                 return
             await event.respond(f"#Bot #Instagram\n{caption}\nLink: {url}", link_preview=False, file=media_path)
             await message.delete()
-            await event.message.delete()
+            if args.rm:
+                await event.message.delete()
     except Exception as e:
         print(e)
         msg = "#Bot: failed to download file."
@@ -392,7 +397,8 @@ async def download_youtube(event, url, args, retries=0):
                 msg += f"\nResolution: {res}"
             await event.respond(msg, link_preview=False, file=output_file, nosound_video=nosound_video)
             await message.delete()
-            await event.message.delete()
+            if args.rm:
+                await event.message.delete()
     except (http.client.IncompleteRead) as e:
         print(e)
         retries += 1
