@@ -197,17 +197,21 @@ def parse_args_gif(text):
         return None
     
 async def make_gif(event, args):
-    message = "#Bot: converting to gif..."
-    await event.reply(message)
-    print(message)
+    msg = "#Bot: converting to gif..."
+    message = await event.reply(message)
+    print(msg)
     try:
         with tempfile.TemporaryDirectory() as tempdir:
             file_name = os.path.join(tempdir, f"{event.id}.mp4")
             await event.message.download_media(file=file_name)
             output_name = remove_audio(file_name)
-            await event.respond(f"#Bot #gif_maker", file=output_name, nosound_video=False)
+            await message.delete()
             if args.rm:
+                await event.respond(f"#Bot #gif_maker", file=output_name, nosound_video=False)
                 await event.message.delete()
+            else:
+                await event.reply(f"#Bot #gif_maker", file=output_name, nosound_video=False)
+
     except Exception as e:
         print(e)
         msg = "#Bot: failed to convert to gif."
@@ -261,10 +265,13 @@ async def download_insta(event, url, args):
                 msg = "#Bot: failed to download file."
                 await abort_and_reply(msg, message, event)
                 return
-            await event.respond(f"#Bot #Instagram\n{caption}\nLink: {url}", link_preview=False, file=media_path)
             await message.delete()
             if args.rm:
                 await event.message.delete()
+                await event.respond(f"#Bot #Instagram\n{caption}\nLink: {url}", link_preview=False, file=media_path)
+            else:
+                await event.reply(f"#Bot #Instagram\n{caption}\nLink: {url}", link_preview=False, file=media_path)
+
     except Exception as e:
         print(e)
         msg = "#Bot: failed to download file."
@@ -395,10 +402,12 @@ async def download_youtube(event, url, args, retries=0):
                 msg += f"\nBitrate: {abr}Kbps"
             else:
                 msg += f"\nResolution: {res}"
-            await event.respond(msg, link_preview=False, file=output_file, nosound_video=nosound_video)
             await message.delete()
             if args.rm:
                 await event.message.delete()
+                await event.respond(msg, link_preview=False, file=output_file, nosound_video=nosound_video)
+            else:
+                await event.reply(msg, link_preview=False, file=output_file, nosound_video=nosound_video)
     except (http.client.IncompleteRead) as e:
         print(e)
         retries += 1
