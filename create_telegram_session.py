@@ -13,9 +13,7 @@ proxy = None
 if config['proxy']:
     proxy = config['proxy']
     
-if config['bot_token']:
-    client = TelegramClient(config['session'], config['api_id'], config['api_hash'], proxy=proxy).start(bot_token=config['bot_token'])
-else:
-    client = TelegramClient(config['session'], config['api_id'], config['api_hash'], proxy=proxy).start(phone=config['phone_number'])
+client = TelegramClient(config['session'], config['api_id'], config['api_hash'], proxy=proxy).start(bot_token=config['bot_token'])
 
 print('.session file created successfully. DO NOT SHARE IT!')
+

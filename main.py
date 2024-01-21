@@ -73,7 +73,7 @@ def get_video_info(url):
     ydl_opts = {'proxy': proxy_str,
                 'quiet': True,
                 'cookiefile': config['cookiefile'],
-                'source_address': '0.0.0.0'
+                'source_address': config['ip_address']
                 }
     with yt_dlp.YoutubeDL(ydl_opts) as ydl:
         info = ydl.extract_info(url, download=False)
@@ -341,7 +341,7 @@ async def download_youtube(event, url, args, retries=0):
                         'live_from_start': is_live,
                         'paths': {'temp': tempdir, 'home': tempdir},
                         'cookiefile': config['cookiefile'],
-                        'source_address': '0.0.0.0'
+                        'source_address': config['ip_address']
                         }
             if args.onlyaudio:
                 mode_id = 0
@@ -418,3 +418,4 @@ async def download_youtube(event, url, args, retries=0):
 
 if __name__ == '__main__':
     client.run_until_disconnected()
+

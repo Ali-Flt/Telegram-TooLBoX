@@ -17,11 +17,8 @@ if config['proxy']:
     proxies = {"http": proxy_str,
                "https": proxy_str}
     proxy = config['proxy']
-    
-if config['bot_token']:
-    client = TelegramClient(config['session'], config['api_id'], config['api_hash'], proxy=proxy).start(bot_token=config['bot_token'])
-else:
-    client = TelegramClient(config['session'], config['api_id'], config['api_hash'], proxy=proxy).start(phone=config['phone_number'])
+
+client = TelegramClient(config['session'], config['api_id'], config['api_hash'], proxy=proxy).start(bot_token=config['bot_token'])
 
 if __name__ == '__main__':
     allowed_youtube_user_ids = []
@@ -42,3 +39,4 @@ if __name__ == '__main__':
     print(f"allowed_youtube_user_ids: {allowed_youtube_user_ids}")
     print(f"allowed_insta_user_ids: {allowed_insta_user_ids}")
     print(f"allowed_gifying_user_ids: {allowed_gifying_user_ids}")
+
