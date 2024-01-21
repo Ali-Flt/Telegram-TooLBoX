@@ -198,7 +198,7 @@ def parse_args_gif(text):
     
 async def make_gif(event, args):
     msg = "#Bot: converting to gif..."
-    message = await event.reply(message)
+    message = await event.reply(msg)
     print(msg)
     try:
         with tempfile.TemporaryDirectory() as tempdir:
