@@ -391,10 +391,17 @@ async def download_youtube(event, url, args, retries=0):
             print(f"{video_title} downloaded successfully")
             msg = f"#Bot #Youtube " + msg_extra
             msg += f"\n{video_title}\nLink: {url}"
-            if is_live:
-                start = length - start
-                end = length - end
-            msg += f"\nStart: {datetime.timedelta(seconds=start)}, End: {datetime.timedelta(seconds=end)}"
+            # length > 12 Hours
+            if length > 43200:
+                start = 'N/A'
+                end = 'N/A'
+            else:
+                if is_live:
+                    start = length - start
+                    end = length - end
+                start = datetime.timedelta(seconds=start)
+                end = datetime.timedelta(seconds=end)
+            msg += f"\nStart: {start}, End: {end}"
             if mode_id == 0:
                 msg += f"\nBitrate: {abr}Kbps"
             else:
