@@ -1,7 +1,7 @@
 version: '1'
 services:
-  yt_insta_downloader_container:
-    image: yt_insta_downloader
+  toolbox_container:
+    image: telegram_toolbox
     restart: always
     working_dir: /app
     volumes:

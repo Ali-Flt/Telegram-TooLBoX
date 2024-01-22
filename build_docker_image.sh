@@ -1,1 +1,1 @@
-docker build -t yt_insta_downloader --network=host .
+docker build -t telegram_toolbox --network=host .
