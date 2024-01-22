@@ -180,8 +180,7 @@ async def handler_make_gif(event):
     if args is None:
         return
     if args.help:
-        await event.message.delete()
-        await event.respond(f"`{gif_parser.format_help()}`\nDon't forget to attach the video to your message.\n{author_msg}")
+        await event.reply(f"`{gif_parser.format_help()}`\nDon't forget to attach the video to your message.\n{author_msg}")
         return
     if args.disable:
         return
@@ -224,8 +223,7 @@ async def handler_insta(event):
     if args is None:
         return
     if args.help:
-        await event.message.delete()
-        await event.respond(f"`{insta_parser.format_help()}`\n{author_msg}")
+        await event.reply(f"`{insta_parser.format_help()}`\n{author_msg}")
         return
     if args.disable:
         return
@@ -266,8 +264,8 @@ async def download_insta(event, url, args):
                 await abort_and_reply(msg, message, event)
                 return
             if args.rm:
-                await event.message.delete()
                 await event.respond(f"#Bot #Instagram\n{caption}\nLink: {url}", link_preview=False, file=media_path)
+                await event.message.delete()
             else:
                 await event.reply(f"#Bot #Instagram\n{caption}\nLink: {url}", link_preview=False, file=media_path)
             await message.delete()
@@ -283,8 +281,7 @@ async def handler_yt(event):
     if args is None:
         return
     if args.help:
-        await event.message.delete()
-        await event.respond(f"`{yt_parser.format_help()}`\n{author_msg}")
+        await event.reply(f"`{yt_parser.format_help()}`\n{author_msg}")
         return
     if args.disable:
         return
@@ -403,8 +400,8 @@ async def download_youtube(event, url, args, retries=0):
             else:
                 msg += f"\nResolution: {res}"
             if args.rm:
-                await event.message.delete()
                 await event.respond(msg, link_preview=False, file=output_file, nosound_video=nosound_video)
+                await event.message.delete()
             else:
                 await event.reply(msg, link_preview=False, file=output_file, nosound_video=nosound_video)
             await message.delete()
