@@ -4,7 +4,7 @@ Several ease of use tools for telegram.
 # Tools
 - Download media from youtube. Use `https://www.youtube.com/video_id -h` for help
 - Download media from instagram. Use `https://www.instagram.com/video_id -h` for help
-- Convert videos to gif. Use `gif -h` for help
+- Convert videos to clips. Use `clip -h` for help
 
 # How to use
 1. create `config.yaml` based on `config.yaml.example` (skip the allowed_user_ids parameters at this step)

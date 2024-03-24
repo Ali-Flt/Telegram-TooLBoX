@@ -6,8 +6,8 @@ allowed_insta_usernames: ['username1', 'username2']
 allowed_insta_user_ids: [123456, 123456]
 allowed_insta_chat_ids: [-123456]
 allowed_gifying_usernames: ['username1']
-allowed_gifying_user_ids: [123456798]
-allowed_gifying_chat_ids: [-123456]
+allowed_clip_user_ids: [123456798]
+allowed_clip_chat_ids: [-123456]
 session: 'telegram_session'
 api_id: 12345679
 api_hash: 'your_api_hash'

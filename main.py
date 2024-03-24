@@ -1,3 +1,4 @@
+import subprocess 
 import yt_dlp
 from yt_dlp.utils import download_range_func
 import time
@@ -94,13 +95,24 @@ def download_yt_dlp(url, ydl_opts, start, end, sign, length, base_time):
         info = ydl.extract_info(url, download=True)
         return info['requested_downloads'][0]['filepath'], info['resolution'], info['abr']
     
+def trim(video_file, start, end):
+    file_name = os.path.splitext(video_file)[0]
+    ext = os.path.splitext(video_file)[-1]
+    output_file = f"{file_name}_trimmed{ext}"
+    input_stream = ffmpeg.input(video_file, ss=(str(datetime.timedelta(seconds=start))), to=(str(datetime.timedelta(seconds=end))))
+    ffmpeg.output(input_stream, output_file, acodec='copy', vcodec='copy', loglevel='quiet').run(overwrite_output=True)
+    return output_file
+
+def get_length(input_video):
+    result = subprocess.run(['ffprobe', '-v', 'error', '-show_entries', 'format=duration', '-of', 'default=noprint_wrappers=1:nokey=1', input_video], stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+    return float(result.stdout)
     
 max_retries = 10
 author_msg = '__Telegram TooLBoX by @a_flt__'
 url_pattern = "(https:\/\/www\.|http:\/\/www\.|https:\/\/|http:\/\/)?[a-zA-Z]{2,}(\.[a-zA-Z]{2,})(\.[a-zA-Z]{2,})?\/[a-zA-Z0-9]{2,}|((https:\/\/www\.|http:\/\/www\.|https:\/\/|http:\/\/)?[a-zA-Z]{2,}(\.[a-zA-Z]{2,})(\.[a-zA-Z]{2,})?)|(https:\/\/www\.|http:\/\/www\.|https:\/\/|http:\/\/)?[a-zA-Z0-9]{2,}\.[a-zA-Z0-9]{2,}\.[a-zA-Z0-9]{2,}(\.[a-zA-Z0-9]{2,})?"
 youtube_url_pattern = "^((?:https?:)?//)?((?:www|m).)?((?:youtube.com|youtu.be))(/(?:[\w-]+?v=|embed/|v/|shorts/)?)([\w-]+)(\S+)?.*"
 instagram_url_pattern = "(?:(?:http|https):\/\/)?(?:www\.)?(?:instagram\.com|instagr\.am)\/([A-Za-z0-9-_\.]+).*"
-make_gif_pattern = "^gif.*"
+make_clip_pattern = "^clip.*"
 help_pattern = "^/(start|help)$"
 allowed_resolutions = ['2160', '1440', '1080', '720', '480', '360', '240', '144']
 
@@ -121,10 +133,15 @@ insta_parser.add_argument('-0', dest='disable', action='store_const', const=True
 insta_parser.add_argument('-rm', dest='rm', action='store_const', const=True, default=False, help="delete original command message after downloading")
 insta_parser.add_argument('-h', dest='help', action='store_const', const=True, default=False, help="print this help command")
 
-gif_parser = argparse.ArgumentParser(add_help=False, prog='gif', exit_on_error=False)
-gif_parser.add_argument('-0', dest='disable', action='store_const', const=True, default=False, help="ignore command")
-gif_parser.add_argument('-rm', dest='rm', action='store_const', const=True, default=False, help="delete original command message after downloading")
-gif_parser.add_argument('-h', dest='help', action='store_const', const=True, default=False, help="print this help command")
+clip_parser = argparse.ArgumentParser(add_help=False, prog='clip', exit_on_error=False)
+clip_parser.add_argument('-0', dest='disable', action='store_const', const=True, default=False, help="ignore command")
+clip_parser.add_argument('-rm', dest='rm', action='store_const', const=True, default=False, help="delete original command message after downloading")
+clip_parser.add_argument('-h', dest='help', action='store_const', const=True, default=False, help="print this help command")
+clip_parser.add_argument('-s', dest='start', type=str, help="start time in seconds or MM:SS")
+clip_parser.add_argument('-e', dest='end', type=str, help="end time in seconds, MM:SS")
+clip_parser.add_argument('-d', dest='duration', type=str, help="duration time in seconds, MM:SS")
+clip_parser.add_argument('-vo', dest='noaudio', action='store_const', const=True, default=False, help="get only video stream")
+clip_parser.add_argument('-gif', dest='gif', action='store_const', const=True, default=False, help="convert video to gif")
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--config', default='config.yaml')
@@ -138,13 +155,13 @@ allowed_youtube_user_ids = config['allowed_youtube_user_ids']
 allowed_youtube_chat_ids = config['allowed_youtube_chat_ids']
 allowed_insta_user_ids = config['allowed_insta_user_ids']
 allowed_insta_chat_ids = config['allowed_insta_chat_ids']
-allowed_gifying_user_ids = config['allowed_gifying_user_ids']
-allowed_gifying_chat_ids = config['allowed_gifying_chat_ids']
+allowed_clip_user_ids = config['allowed_clip_user_ids']
+allowed_clip_chat_ids = config['allowed_clip_chat_ids']
 
 all_allowed_user_ids = merge_lists(allowed_youtube_user_ids, allowed_insta_user_ids)
-all_allowed_user_ids = merge_lists(all_allowed_user_ids, allowed_gifying_user_ids)
+all_allowed_user_ids = merge_lists(all_allowed_user_ids, allowed_clip_user_ids)
 all_allowed_chat_ids = merge_lists(allowed_youtube_chat_ids, allowed_insta_chat_ids)
-all_allowed_chat_ids = merge_lists(all_allowed_chat_ids, allowed_gifying_chat_ids)
+all_allowed_chat_ids = merge_lists(all_allowed_chat_ids, allowed_clip_chat_ids)
 insta = Client()
 
 proxy = None
@@ -169,51 +186,79 @@ async def hanlder_help(event):
     msg += "\n------------------------------------------------------------------------------------------------"
     msg += f"\n`{insta_parser.format_help()}`"
     msg += "\n------------------------------------------------------------------------------------------------"
-    msg += f"\n`{gif_parser.format_help()}`"
+    msg += f"\n`{clip_parser.format_help()}`"
     msg += "\n------------------------------------------------------------------------------------------------"
     msg += f"\n{author_msg}"
     await event.respond(msg)
 
-@client.on(events.NewMessage(func=lambda e: e.chat_id in allowed_gifying_chat_ids or e.sender_id in allowed_gifying_user_ids, pattern=make_gif_pattern))
-async def handler_make_gif(event):
-    args = parse_args_gif(event.raw_text)
+@client.on(events.NewMessage(func=lambda e: e.chat_id in allowed_clip_chat_ids or e.sender_id in allowed_clip_user_ids, pattern=make_clip_pattern))
+async def handler_make_clip(event):
+    args = parse_args_clip(event.raw_text)
     if args is None:
         return
     if args.help:
-        await event.reply(f"`{gif_parser.format_help()}`\nDon't forget to attach the video to your message.\n{author_msg}")
+        await event.reply(f"`{clip_parser.format_help()}`\nDon't forget to attach the video to your message.\n{author_msg}")
         return
     if args.disable:
         return
     if event.message.video:
-        await make_gif(event, args)
+        await make_clip(event, args)
 
-def parse_args_gif(text):
+def parse_args_clip(text):
     splitted_text = re.split(' ', text)
     try:
-        return gif_parser.parse_known_args(splitted_text[1:])[0]
+        return clip_parser.parse_known_args(splitted_text[1:])[0]
     except Exception as e:
         print(e)
         return None
     
-async def make_gif(event, args):
-    msg = "#Bot: converting to gif..."
+async def make_clip(event, args):
+    msg = "#Bot: Creating clip..."
     message = await event.reply(msg)
     print(msg)
     try:
         with tempfile.TemporaryDirectory() as tempdir:
+            nosound_video = None
             file_name = os.path.join(tempdir, f"{event.id}.mp4")
             await event.message.download_media(file=file_name)
-            output_name = remove_audio(file_name)
+            length = get_length(file_name)
+            start = get_timestamp(args.start)
+            duration = get_timestamp(args.duration) 
+            end = get_timestamp(args.end)
+            if start is not None and duration is not None:
+                end = start + duration
+            elif end is not None and duration is not None:
+                start = end - duration
+            if start is not None:
+                start = max(min(start, length), 0)
+            else:
+                start = 0
+            if end is not None:
+                end = max(min(end, length), 0)
+            else:
+                end = length
+            if (start >= end):
+                msg = "#Bot: timestamps out of range."
+                await abort_and_reply(msg, message, event)
+                return
+            if end - start < length:
+                file_name = trim(file_name, start, end)
+            if args.noaudio or args.gif:
+                file_name = remove_audio(file_name)
+                if args.gif:
+                    nosound_video=False
+                else:
+                    nosound_video=True
             if args.rm:
-                await event.respond(f"#Bot #gif_maker", file=output_name, nosound_video=False)
+                await event.respond(f"#Bot #clip_maker", file=file_name, nosound_video=nosound_video)
                 await event.message.delete()
             else:
-                await event.reply(f"#Bot #gif_maker", file=output_name, nosound_video=False)
+                await event.reply(f"#Bot #clip_maker", file=file_name, nosound_video=nosound_video)
             await message.delete()
 
     except Exception as e:
         print(e)
-        msg = "#Bot: failed to convert to gif."
+        msg = "#Bot: failed to create clip."
         abort_and_reply(msg, message, event)
         
         
