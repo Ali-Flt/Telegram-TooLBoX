@@ -32,7 +32,7 @@ if __name__ == '__main__':
         for user in config['allowed_insta_usernames']:
             entity = client.get_entity(user)
             allowed_insta_user_ids.append(entity.id)
-        for user in config['allowed_gifying_usernames']:
+        for user in config['allowed_clip_usernames']:
             entity = client.get_entity(user)
             allowed_clip_user_ids.append(entity.id)
         
