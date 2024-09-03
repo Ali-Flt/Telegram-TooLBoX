@@ -34,6 +34,8 @@ def get_valid_resolution(allowed_resolutions, config, res_str=None):
         return res_str
     return config['default_resolution']
 
-
-def merge_lists(first_list, second_list):
-    return first_list + list(set(second_list) - set(first_list))
+def merge_lists(*args):
+    merged_set = set()
+    for lst in args:
+        merged_set.update(lst)
+    return list(merged_set)

@@ -64,6 +64,8 @@ allowed_insta_user_ids = config['allowed_insta_user_ids']
 allowed_insta_chat_ids = config['allowed_insta_chat_ids']
 allowed_clip_user_ids = config['allowed_clip_user_ids']
 allowed_clip_chat_ids = config['allowed_clip_chat_ids']
+allowed_stt_user_ids = config['allowed_stt_user_ids']
+allowed_stt_chat_ids = config['allowed_stt_chat_ids']
 
 if len(allowed_youtube_user_ids) > 0 or len(allowed_youtube_chat_ids) > 0:
     from src.yt_utils import get_yt_video_info, download_yt_dlp
@@ -76,11 +78,13 @@ if len(allowed_insta_user_ids) > 0 or len(allowed_clip_chat_ids) > 0:
     insta = Client()
 else:
     insta = None
+
+if len(allowed_stt_user_ids) > 0 or len(allowed_stt_chat_ids) > 0:
+    from src.stt_utils import get_stt_model
+    stt_model = get_stt_model()
     
-all_allowed_user_ids = merge_lists(allowed_youtube_user_ids, allowed_insta_user_ids)
-all_allowed_user_ids = merge_lists(all_allowed_user_ids, allowed_clip_user_ids)
-all_allowed_chat_ids = merge_lists(allowed_youtube_chat_ids, allowed_insta_chat_ids)
-all_allowed_chat_ids = merge_lists(all_allowed_chat_ids, allowed_clip_chat_ids)
+all_allowed_user_ids = merge_lists(allowed_youtube_user_ids, allowed_insta_user_ids, allowed_clip_user_ids, allowed_stt_user_ids)
+all_allowed_chat_ids = merge_lists(allowed_youtube_chat_ids, allowed_insta_chat_ids, allowed_clip_chat_ids, allowed_stt_chat_ids)
 
 
 proxy = None
@@ -110,6 +114,18 @@ async def hanlder_help(event):
     msg += "\n------------------------------------------------------------------------------------------------"
     msg += f"\n{author_msg}"
     await event.respond(msg)
+
+@client.on(events.NewMessage(func=lambda e: (e.chat_id in allowed_stt_chat_ids or e.sender_id in allowed_stt_user_ids) and e.message.voice))
+async def handler_stt(event):
+    try:
+        with tempfile.TemporaryDirectory() as tempdir:
+            file_name = os.path.join(tempdir, f"{event.id}.mp3")
+            await event.message.download_media(file=file_name)
+            transcripts = stt_model(file_name)['text']
+            await event.reply(f"#Bot #STT\n{transcripts}")
+    except Exception as e:
+        print(e)
+        print("failed to convert speech to text.")
 
 @client.on(events.NewMessage(func=lambda e: e.chat_id in allowed_clip_chat_ids or e.sender_id in allowed_clip_user_ids, pattern=make_clip_pattern))
 async def handler_make_clip(event):

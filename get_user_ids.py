@@ -24,7 +24,7 @@ if __name__ == '__main__':
     allowed_youtube_user_ids = []
     allowed_insta_user_ids = []
     allowed_clip_user_ids = []
-    
+    allowed_stt_user_ids = []
     with client:
         for user in config['allowed_youtube_usernames']:
             entity = client.get_entity(user)
@@ -35,8 +35,11 @@ if __name__ == '__main__':
         for user in config['allowed_clip_usernames']:
             entity = client.get_entity(user)
             allowed_clip_user_ids.append(entity.id)
+        for user in config['allowed_stt_usernames']:
+            entity = client.get_entity(user)
+            allowed_stt_user_ids.append(entity.id)
         
     print(f"allowed_youtube_user_ids: {allowed_youtube_user_ids}")
     print(f"allowed_insta_user_ids: {allowed_insta_user_ids}")
     print(f"allowed_clip_user_ids: {allowed_clip_user_ids}")
-
+    print(f"allowed_stt_user_ids: {allowed_stt_user_ids}")

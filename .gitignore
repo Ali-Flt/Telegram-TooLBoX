@@ -4,3 +4,5 @@ config.yml
 *.session-journal
 *.txt
 .venv
+__pycache__
+*_checkpoints

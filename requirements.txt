@@ -5,3 +5,7 @@ python-socks[asyncio]==2.5.1
 instagrapi==2.1.2
 pillow==10.4.0
 yt-dlp @ git+https://github.com/Ali-Flt/yt-dlp.git@5156a16cf9295c902eb7441ad41eae37faa6ca76
+# For STT:
+# transformers
+# datasets[audio]
+# accelerate
