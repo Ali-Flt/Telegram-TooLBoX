@@ -1,111 +1,18 @@
-import subprocess 
-import yt_dlp
-from yt_dlp.utils import download_range_func
-import time
-import os, errno
+import os
 import re
 import yaml
 import argparse
-import ffmpeg
 from telethon import TelegramClient, events
 import datetime
 import tempfile
 import http
-from instagrapi import Client
 from urllib.error import HTTPError
-
-def get_int(string=None):
-    if string is None:
-        return None
-    try:
-        return int(string)
-    except ValueError:
-        return None
-
-def silentremove(filename):
-    try:
-        os.remove(filename)
-    except OSError as e:
-        if e.errno != errno.ENOENT:
-            raise
-    
-def remove_audio(video_file):
-    file_name = os.path.splitext(video_file)[0]
-    ext = os.path.splitext(video_file)[-1]
-    output_file = f"{file_name}_noaudio{ext}"
-    video_stream = ffmpeg.input(video_file)
-    ffmpeg.output(video_stream, output_file, vcodec='copy', an=None, loglevel='quiet').run(overwrite_output=True)
-    return output_file
-
-def get_timestamp(time_str=None):
-    if time_str is None:
-        return None
-    int_time = get_int(time_str)
-    if int_time is not None:
-        if int_time >= 0:
-            return int_time
-    hour = 0
-    try:
-        timestamp = datetime.datetime.strptime(time_str, "%M:%S")
-    except ValueError:
-        try:
-            timestamp = datetime.datetime.strptime(time_str, "%H:%M:%S")
-            hour = timestamp.hour
-        except ValueError:
-            return None
-    return hour*3600 + timestamp.minute*60 + timestamp.second
-            
-def get_valid_resolution(res_str=None):
-    if res_str is None:
-        return config['default_resolution']
-    if res_str in allowed_resolutions:
-        return res_str
-    return config['default_resolution']
+from src.utils import get_timestamp, get_valid_resolution, merge_lists
 
 async def abort_and_reply(msg, msg_to_delete, event):
     await msg_to_delete.delete()
     print(msg)
     await event.reply(msg)
-
-def merge_lists(first_list, second_list):
-    return first_list + list(set(second_list) - set(first_list))
-
-def get_video_info(url):
-    ydl_opts = {'proxy': proxy_str,
-                'quiet': True,
-                'cookiefile': config['cookiefile'],
-                'source_address': config['ip_address']
-                }
-    with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-        info = ydl.extract_info(url, download=False)
-        is_live = info['is_live']
-        if is_live:
-            base_time = time.time()
-            duration = base_time - info['release_timestamp']
-        else:
-            base_time = 0
-            duration = info['duration']
-        
-        return info['title'], is_live, duration, base_time
-
-def download_yt_dlp(url, ydl_opts, start, end, sign, length, base_time):
-    if abs(end-start) < length:
-        ydl_opts['download_ranges'] = download_range_func(None, [(base_time+(sign*start), base_time+(sign*end))])
-    with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-        info = ydl.extract_info(url, download=True)
-        return info['requested_downloads'][0]['filepath'], info['resolution'], info['abr']
-    
-def trim(video_file, start, end):
-    file_name = os.path.splitext(video_file)[0]
-    ext = os.path.splitext(video_file)[-1]
-    output_file = f"{file_name}_trimmed{ext}"
-    input_stream = ffmpeg.input(video_file, ss=(str(datetime.timedelta(seconds=start))), to=(str(datetime.timedelta(seconds=end))))
-    ffmpeg.output(input_stream, output_file, acodec='copy', vcodec='copy', loglevel='quiet').run(overwrite_output=True)
-    return output_file
-
-def get_length(input_video):
-    result = subprocess.run(['ffprobe', '-v', 'error', '-show_entries', 'format=duration', '-of', 'default=noprint_wrappers=1:nokey=1', input_video], stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
-    return float(result.stdout)
     
 max_retries = 10
 author_msg = '__Telegram TooLBoX by @a_flt__'
@@ -158,11 +65,23 @@ allowed_insta_chat_ids = config['allowed_insta_chat_ids']
 allowed_clip_user_ids = config['allowed_clip_user_ids']
 allowed_clip_chat_ids = config['allowed_clip_chat_ids']
 
+if len(allowed_youtube_user_ids) > 0 or len(allowed_youtube_chat_ids) > 0:
+    from src.yt_utils import get_yt_video_info, download_yt_dlp
+
+if len(allowed_youtube_user_ids) > 0 or len(allowed_youtube_chat_ids) > 0 or len(allowed_clip_user_ids) > 0 or len(allowed_clip_chat_ids) > 0:
+    from src.video_utils import get_video_length, remove_audio, trim
+
+if len(allowed_insta_user_ids) > 0 or len(allowed_clip_chat_ids) > 0:
+    from instagrapi import Client
+    insta = Client()
+else:
+    insta = None
+    
 all_allowed_user_ids = merge_lists(allowed_youtube_user_ids, allowed_insta_user_ids)
 all_allowed_user_ids = merge_lists(all_allowed_user_ids, allowed_clip_user_ids)
 all_allowed_chat_ids = merge_lists(allowed_youtube_chat_ids, allowed_insta_chat_ids)
 all_allowed_chat_ids = merge_lists(all_allowed_chat_ids, allowed_clip_chat_ids)
-insta = Client()
+
 
 proxy = None
 proxies = None
@@ -172,11 +91,12 @@ if config['proxy']:
     proxies = {"http": proxy_str,
                "https": proxy_str}
     proxy = config['proxy']
-    insta.set_proxy(proxy_str)
+    if insta is not None:
+        insta.set_proxy(proxy_str)
 
 client = TelegramClient(config['session'], config['api_id'], config['api_hash'], proxy=proxy).start(bot_token=config['bot_token'])
 
-if config['instagram_session_id']:
+if config['instagram_session_id'] and insta is not None:
     insta.login_by_sessionid(config['instagram_session_id'])
 
 @client.on(events.NewMessage(func=lambda e: e.chat_id in all_allowed_chat_ids or e.sender_id in all_allowed_user_ids, pattern=help_pattern))
@@ -221,7 +141,7 @@ async def make_clip(event, args):
             nosound_video = None
             file_name = os.path.join(tempdir, f"{event.id}.mp4")
             await event.message.download_media(file=file_name)
-            length = get_length(file_name)
+            length = get_video_length(file_name)
             start = get_timestamp(args.start)
             duration = get_timestamp(args.duration) 
             end = get_timestamp(args.end)
@@ -349,7 +269,7 @@ async def download_youtube(event, url, args, retries=0):
     print(msg)
     message = await event.reply(msg)
     try:
-        video_title, is_live, length, base_time = get_video_info(url)
+        video_title, is_live, length, base_time = get_yt_video_info(url, proxy_str, config)
         if is_live:
             sign = -1
         else:
@@ -383,7 +303,7 @@ async def download_youtube(event, url, args, retries=0):
             msg = f"#Bot: can't download video sections longer than {config['max_video_length']} seconds. Please crop the video shorter."
             await abort_and_reply(msg, message, event)
             return
-        resolution = get_valid_resolution(args.resolution)
+        resolution = get_valid_resolution(allowed_resolutions, config, args.resolution)
         print(f"Downloading {video_title} ...")
         nosound_video = None
         msg_extra = ''

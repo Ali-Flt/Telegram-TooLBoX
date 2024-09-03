@@ -1,7 +1,7 @@
-telethon==1.33.1
+telethon==1.36.0
 ffmpeg-python==0.2.0
-pyyaml==6.0.1
-python-socks[asyncio]==2.4.4
-instagrapi==2.0.1
-pillow==10.2.0
+pyyaml==6.0.2
+python-socks[asyncio]==2.5.1
+instagrapi==2.1.2
+pillow==10.4.0
 yt-dlp @ git+https://github.com/Ali-Flt/yt-dlp.git@5156a16cf9295c902eb7441ad41eae37faa6ca76
