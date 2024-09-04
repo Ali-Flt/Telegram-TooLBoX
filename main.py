@@ -21,7 +21,6 @@ youtube_url_pattern = "^((?:https?:)?//)?((?:www|m).)?((?:youtube.com|youtu.be))
 instagram_url_pattern = "(?:(?:http|https):\/\/)?(?:www\.)?(?:instagram\.com|instagr\.am)\/([A-Za-z0-9-_\.]+).*"
 make_clip_pattern = "^clip.*"
 help_pattern = "^/(start|help)$"
-allowed_resolutions = ['2160', '1440', '1080', '720', '480', '360', '240', '144']
 
 yt_parser = argparse.ArgumentParser(add_help=False, prog='youtube_media_url', exit_on_error=False)
 yt_parser.add_argument('-0', dest='disable', action='store_const', const=True, default=False, help="ignore command")
@@ -68,7 +67,7 @@ allowed_stt_user_ids = config['allowed_stt_user_ids']
 allowed_stt_chat_ids = config['allowed_stt_chat_ids']
 
 if len(allowed_youtube_user_ids) > 0 or len(allowed_youtube_chat_ids) > 0:
-    from src.yt_utils import get_yt_video_info, download_yt_dlp
+    from src.yt_utils import get_yt_video_info, download_yt_dlp, allowed_resolutions
 
 if len(allowed_youtube_user_ids) > 0 or len(allowed_youtube_chat_ids) > 0 or len(allowed_clip_user_ids) > 0 or len(allowed_clip_chat_ids) > 0:
     from src.video_utils import get_video_length, remove_audio, trim
@@ -80,8 +79,8 @@ else:
     insta = None
 
 if len(allowed_stt_user_ids) > 0 or len(allowed_stt_chat_ids) > 0:
-    from src.stt_utils import get_stt_model
-    stt_model = get_stt_model()
+    from multiprocessing import Process, Queue
+    from src.stt_utils import stt_worker
     
 all_allowed_user_ids = merge_lists(allowed_youtube_user_ids, allowed_insta_user_ids, allowed_clip_user_ids, allowed_stt_user_ids)
 all_allowed_chat_ids = merge_lists(allowed_youtube_chat_ids, allowed_insta_chat_ids, allowed_clip_chat_ids, allowed_stt_chat_ids)
@@ -121,7 +120,11 @@ async def handler_stt(event):
         with tempfile.TemporaryDirectory() as tempdir:
             file_name = os.path.join(tempdir, f"{event.id}.mp3")
             await event.message.download_media(file=file_name)
-            transcripts = stt_model(file_name)['text']
+            queue = Queue()
+            p = Process(target=stt_worker, args=(queue, file_name))
+            p.start()
+            p.join()
+            transcripts = queue.get()
             await event.reply(f"#Bot #STT\n{transcripts}")
     except Exception as e:
         print(e)

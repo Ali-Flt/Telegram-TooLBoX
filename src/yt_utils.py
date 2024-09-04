@@ -2,6 +2,8 @@ import yt_dlp
 from yt_dlp.utils import download_range_func
 import time
 
+allowed_resolutions = ['2160', '1440', '1080', '720', '480', '360', '240', '144']
+
 def download_yt_dlp(url, ydl_opts, start, end, sign, length, base_time):
     if abs(end-start) < length:
         ydl_opts['download_ranges'] = download_range_func(None, [(base_time+(sign*start), base_time+(sign*end))])
