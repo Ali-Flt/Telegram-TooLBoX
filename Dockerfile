@@ -11,7 +11,3 @@ RUN cp -r ffmpeg*/ff* /usr/bin/ && rm -rf ffmpeg*
 COPY requirements.txt ./
 RUN pip install --no-cache-dir -r requirements.txt 
 #RUN pip uninstall -y pydantic pydantic_core && pip install --no-cache-dir pydantic==1.10.13
-
-wget https://johnvansickle.com/ffmpeg/builds/ffmpeg-git-amd64-static.tar.xz -O ffmpeg.tar.xz && \
-    tar -xvf ffmpeg.tar.xz
-cp -r ffmpeg*/ff* /usr/bin/ && rm -rf ffmpeg*
