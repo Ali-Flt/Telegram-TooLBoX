@@ -1,4 +1,3 @@
-version: '1'
 services:
   toolbox_container:
     image: telegram_toolbox
