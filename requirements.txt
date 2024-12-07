@@ -1,10 +1,10 @@
-telethon==1.36.0
+telethon==1.38.1
 ffmpeg-python==0.2.0
 pyyaml==6.0.2
-python-socks[asyncio]==2.5.1
-instagrapi==2.1.2
-pillow==10.4.0
+python-socks[asyncio]==2.5.3
+instagrapi==2.1.3
+pillow==11.0.0
 yt-dlp @ git+https://github.com/Ali-Flt/yt-dlp.git@822c4a439a3999ee606bec38519ba435fcdd7af1
 # For STT:
-transformers==4.44.2
-accelerate==0.34.0
+#transformers==4.44.2
+#accelerate==0.34.0
