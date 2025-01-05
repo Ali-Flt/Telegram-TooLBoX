@@ -8,6 +8,8 @@ import tempfile
 import http
 from urllib.error import HTTPError
 from src.utils import get_timestamp, get_valid_resolution, merge_lists
+from src.transcribe_utils import run_transcribe
+import urllib.request
 
 async def abort_and_reply(msg, msg_to_delete, event):
     await msg_to_delete.delete()
@@ -50,6 +52,8 @@ clip_parser.add_argument('-d', dest='duration', type=str, help="duration time in
 clip_parser.add_argument('-vo', dest='noaudio', action='store_const', const=True, default=False, help="get only video stream")
 clip_parser.add_argument('-gif', dest='gif', action='store_const', const=True, default=False, help="convert video to gif")
 clip_parser.add_argument('-t', dest='translate', action='store_const', const=True, default=False, help="translate the video")
+clip_parser.add_argument('-l', dest='link', type=str, help="link to a video to download and make a clip from")
+
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--config', default='config.yaml')
@@ -65,8 +69,8 @@ allowed_insta_user_ids = config['allowed_insta_user_ids']
 allowed_insta_chat_ids = config['allowed_insta_chat_ids']
 allowed_clip_user_ids = config['allowed_clip_user_ids']
 allowed_clip_chat_ids = config['allowed_clip_chat_ids']
-allowed_stt_user_ids = config['allowed_stt_user_ids']
-allowed_stt_chat_ids = config['allowed_stt_chat_ids']
+# allowed_stt_user_ids = config['allowed_stt_user_ids']
+# allowed_stt_chat_ids = config['allowed_stt_chat_ids']
 
 if len(allowed_youtube_user_ids) > 0 or len(allowed_youtube_chat_ids) > 0:
     from src.yt_utils import get_yt_video_info, download_yt_dlp, allowed_resolutions
@@ -79,12 +83,9 @@ if len(allowed_insta_user_ids) > 0 or len(allowed_clip_chat_ids) > 0:
     insta = Client()
 else:
     insta = None
-
-if len(allowed_stt_user_ids) > 0 or len(allowed_stt_chat_ids) > 0:
-    from src.stt_utils import run_stt, run_translate
     
-all_allowed_user_ids = merge_lists(allowed_youtube_user_ids, allowed_insta_user_ids, allowed_clip_user_ids, allowed_stt_user_ids)
-all_allowed_chat_ids = merge_lists(allowed_youtube_chat_ids, allowed_insta_chat_ids, allowed_clip_chat_ids, allowed_stt_chat_ids)
+all_allowed_user_ids = merge_lists(allowed_youtube_user_ids, allowed_insta_user_ids, allowed_clip_user_ids)#, allowed_stt_user_ids)
+all_allowed_chat_ids = merge_lists(allowed_youtube_chat_ids, allowed_insta_chat_ids, allowed_clip_chat_ids)#, allowed_stt_chat_ids)
 
 
 proxy = None
@@ -102,8 +103,8 @@ client = TelegramClient(config['session'], config['api_id'], config['api_hash'],
 
 if config['instagram_session_id'] and insta is not None:
     insta.login_by_sessionid(config['instagram_session_id'])
-
-@client.on(events.NewMessage(func=lambda e: e.chat_id in all_allowed_chat_ids or e.sender_id in all_allowed_user_ids, pattern=help_pattern))
+# 
+# @client.on(events.NewMessage(func=lambda e: e.chat_id in all_allowed_chat_ids or e.sender_id in all_allowed_user_ids, pattern=help_pattern))
 async def hanlder_help(event):
     msg = "Please use one of the following commands: (You may not have access to all commands.)"
     msg += f"\n`{yt_parser.format_help()}`"
@@ -115,17 +116,17 @@ async def hanlder_help(event):
     msg += f"\n{author_msg}"
     await event.respond(msg)
 
-@client.on(events.NewMessage(func=lambda e: (e.chat_id in allowed_stt_chat_ids or e.sender_id in allowed_stt_user_ids) and e.message.voice))
-async def handler_stt(event):
-    try:
-        with tempfile.TemporaryDirectory() as tempdir:
-            file_name = os.path.join(tempdir, f"{event.id}.mp3")
-            await event.message.download_media(file=file_name)
-            transcript = run_stt(file_name, lang="persian")
-            await event.reply(f"#Bot #STT\n{transcript}")
-    except Exception as e:
-        print(e)
-        print("failed to convert speech to text.")
+# @client.on(events.NewMessage(func=lambda e: (e.chat_id in allowed_stt_chat_ids or e.sender_id in allowed_stt_user_ids) and e.message.voice))
+# async def handler_stt(event):
+#     try:
+#         with tempfile.TemporaryDirectory() as tempdir:
+#             file_name = os.path.join(tempdir, f"{event.id}.mp3")
+#             await event.message.download_media(file=file_name)
+#             transcript = run_transcribe(file_name)
+#             await event.reply("#Bot #Transcribe", file=transcript)
+#     except Exception as e:
+#         print(e)
+#         print("failed to convert speech to text.")
 
 @client.on(events.NewMessage(func=lambda e: e.chat_id in allowed_clip_chat_ids or e.sender_id in allowed_clip_user_ids, pattern=make_clip_pattern))
 async def handler_make_clip(event):
@@ -137,8 +138,8 @@ async def handler_make_clip(event):
         return
     if args.disable:
         return
-    if event.message.video:
-        await make_clip(event, args)
+    # if event.message.video:
+    await make_clip(event, args)
 
 def parse_args_clip(text):
     splitted_text = re.split(' ', text)
@@ -156,7 +157,10 @@ async def make_clip(event, args):
         with tempfile.TemporaryDirectory() as tempdir:
             nosound_video = None
             file_name = os.path.join(tempdir, f"{event.id}.mp4")
-            await event.message.download_media(file=file_name)
+            if args.link:
+                urllib.request.urlretrieve(args.link, file_name)
+            else:
+                await event.message.download_media(file=file_name)
             length = get_video_length(file_name)
             start = get_timestamp(args.start)
             duration = get_timestamp(args.duration) 
@@ -186,25 +190,22 @@ async def make_clip(event, args):
                 else:
                     nosound_video=True
             if args.translate:
-                transcript = run_stt(file_name, lang="english")
-                translated_transcript = run_translate(transcript)
+                transcript = run_transcribe(file_name)
             if args.rm:
                 await event.respond(f"#Bot #clip_maker", file=file_name, nosound_video=nosound_video)
                 if args.translate:
-                    await event.respond(f"#Bot #STT\n{transcript}")
-                    await event.respond(f"#Bot #STT\n{translated_transcript}")
+                    await event.respond("#Bot #Transcribe", file=transcript)
                 await event.message.delete()
             else:
                 await event.reply(f"#Bot #clip_maker", file=file_name, nosound_video=nosound_video)
                 if args.translate:
-                    await event.reply(f"#Bot #STT\n{transcript}")
-                    await event.reply(f"#Bot #STT\n{translated_transcript}")
+                    await event.reply("#Bot #Transcribe", file=transcript)
             await message.delete()
 
     except Exception as e:
         print(e)
         msg = "#Bot: failed to create clip."
-        abort_and_reply(msg, message, event)
+        await abort_and_reply(msg, message, event)
         
         
 @client.on(events.NewMessage(func=lambda e: e.chat_id in allowed_insta_chat_ids or e.sender_id in allowed_insta_user_ids, pattern=instagram_url_pattern))
@@ -397,19 +398,16 @@ async def download_youtube(event, url, args, retries=0):
             else:
                 msg += f"\nResolution: {res}"
             if args.translate:
-                transcript = run_stt(output_file, lang="english")
-                translated_transcript = run_translate(transcript)
+                transcript = run_transcribe(output_file)
             if args.rm:
                 await event.respond(msg, link_preview=False, file=output_file, nosound_video=nosound_video)
                 if args.translate:
-                    await event.respond(f"#Bot #STT\n{transcript}")
-                    await event.respond(f"#Bot #STT\n{translated_transcript}")
+                    await event.respond("#Bot #Transcribe", file=transcript)
                 await event.message.delete()
             else:
                 await event.reply(msg, link_preview=False, file=output_file, nosound_video=nosound_video)
                 if args.translate:
-                    await event.reply(f"#Bot #STT\n{transcript}")
-                    await event.reply(f"#Bot #STT\n{translated_transcript}")
+                    await event.reply("#Bot #Transcribe", file=transcript)
             await message.delete()
     except (http.client.IncompleteRead) as e:
         print(e)
