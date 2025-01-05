@@ -6,3 +6,4 @@ config.yml
 .venv
 __pycache__
 *_checkpoints
+.cache

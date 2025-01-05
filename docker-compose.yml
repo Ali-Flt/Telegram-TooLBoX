@@ -1,10 +1,12 @@
 services:
   toolbox_container:
+    stop_signal: SIGKILL
     image: telegram_toolbox
     restart: always
     working_dir: /app
     volumes:
       - ./:/app
+      - .cache:/root/.cache
     command: python3 -u main.py --config config.yaml
     network_mode: "host"
     logging:
@@ -12,3 +14,9 @@ services:
       options:
         max-size: "100m"
         max-file: "10"
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              capabilities: [gpu]

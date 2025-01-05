@@ -33,6 +33,7 @@ yt_parser.add_argument('-vo', dest='noaudio', action='store_const', const=True, 
 yt_parser.add_argument('-gif', dest='gif', action='store_const', const=True, default=False, help="convert video to gif")
 yt_parser.add_argument('-rm', dest='rm', action='store_const', const=True, default=False, help="delete original command message after downloading")
 yt_parser.add_argument('-h', dest='help', action='store_const', const=True, default=False, help="print this help command")
+yt_parser.add_argument('-t', dest='translate', action='store_const', const=True, default=False, help="translate the video")
 
 insta_parser = argparse.ArgumentParser(add_help=False, prog='instagram_media_url', exit_on_error=False)
 insta_parser.add_argument('-0', dest='disable', action='store_const', const=True, default=False, help="ignore command")
@@ -48,6 +49,7 @@ clip_parser.add_argument('-e', dest='end', type=str, help="end time in seconds, 
 clip_parser.add_argument('-d', dest='duration', type=str, help="duration time in seconds, MM:SS")
 clip_parser.add_argument('-vo', dest='noaudio', action='store_const', const=True, default=False, help="get only video stream")
 clip_parser.add_argument('-gif', dest='gif', action='store_const', const=True, default=False, help="convert video to gif")
+clip_parser.add_argument('-t', dest='translate', action='store_const', const=True, default=False, help="translate the video")
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--config', default='config.yaml')
@@ -79,8 +81,7 @@ else:
     insta = None
 
 if len(allowed_stt_user_ids) > 0 or len(allowed_stt_chat_ids) > 0:
-    from multiprocessing import Process, Queue
-    from src.stt_utils import stt_worker
+    from src.stt_utils import run_stt, run_translate
     
 all_allowed_user_ids = merge_lists(allowed_youtube_user_ids, allowed_insta_user_ids, allowed_clip_user_ids, allowed_stt_user_ids)
 all_allowed_chat_ids = merge_lists(allowed_youtube_chat_ids, allowed_insta_chat_ids, allowed_clip_chat_ids, allowed_stt_chat_ids)
@@ -120,12 +121,8 @@ async def handler_stt(event):
         with tempfile.TemporaryDirectory() as tempdir:
             file_name = os.path.join(tempdir, f"{event.id}.mp3")
             await event.message.download_media(file=file_name)
-            queue = Queue()
-            p = Process(target=stt_worker, args=(queue, file_name))
-            p.start()
-            p.join()
-            transcripts = queue.get()
-            await event.reply(f"#Bot #STT\n{transcripts}")
+            transcript = run_stt(file_name, lang="persian")
+            await event.reply(f"#Bot #STT\n{transcript}")
     except Exception as e:
         print(e)
         print("failed to convert speech to text.")
@@ -188,11 +185,20 @@ async def make_clip(event, args):
                     nosound_video=False
                 else:
                     nosound_video=True
+            if args.translate:
+                transcript = run_stt(file_name, lang="english")
+                translated_transcript = run_translate(transcript)
             if args.rm:
                 await event.respond(f"#Bot #clip_maker", file=file_name, nosound_video=nosound_video)
+                if args.translate:
+                    await event.respond(f"#Bot #STT\n{transcript}")
+                    await event.respond(f"#Bot #STT\n{translated_transcript}")
                 await event.message.delete()
             else:
                 await event.reply(f"#Bot #clip_maker", file=file_name, nosound_video=nosound_video)
+                if args.translate:
+                    await event.reply(f"#Bot #STT\n{transcript}")
+                    await event.reply(f"#Bot #STT\n{translated_transcript}")
             await message.delete()
 
     except Exception as e:
@@ -390,11 +396,20 @@ async def download_youtube(event, url, args, retries=0):
                 msg += f"\nBitrate: {abr}Kbps"
             else:
                 msg += f"\nResolution: {res}"
+            if args.translate:
+                transcript = run_stt(output_file, lang="english")
+                translated_transcript = run_translate(transcript)
             if args.rm:
                 await event.respond(msg, link_preview=False, file=output_file, nosound_video=nosound_video)
+                if args.translate:
+                    await event.respond(f"#Bot #STT\n{transcript}")
+                    await event.respond(f"#Bot #STT\n{translated_transcript}")
                 await event.message.delete()
             else:
                 await event.reply(msg, link_preview=False, file=output_file, nosound_video=nosound_video)
+                if args.translate:
+                    await event.reply(f"#Bot #STT\n{transcript}")
+                    await event.reply(f"#Bot #STT\n{translated_transcript}")
             await message.delete()
     except (http.client.IncompleteRead) as e:
         print(e)
@@ -421,4 +436,3 @@ async def download_youtube(event, url, args, retries=0):
 
 if __name__ == '__main__':
     client.run_until_disconnected()
-
