@@ -11,7 +11,7 @@ def transcribe_audio(audio_file):
     name = os.path.basename(audio_file)
     no_ext_name = os.path.splitext(name)[0]
     word_options = {
-    "highlight_words": True,
+    "highlight_words": False,
     "max_line_count": 3,
     "max_words_per_line": 6
     }
